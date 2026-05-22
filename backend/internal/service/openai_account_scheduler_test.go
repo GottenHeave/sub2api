@@ -980,6 +980,63 @@ func TestOpenAIGatewayService_SelectAccountWithSchedulerForAccountType_RequiredA
 	}
 }
 
+func TestOpenAIGatewayService_SelectAccountWithSchedulerForAccountType_MultipleTypesSkipsUnsupported(t *testing.T) {
+	resetOpenAIAdvancedSchedulerSettingCacheForTest()
+
+	ctx := context.Background()
+	groupID := int64(1014)
+	accounts := []Account{
+		{
+			ID:          2501,
+			Platform:    PlatformOpenAI,
+			Type:        AccountTypeSetupToken,
+			Status:      StatusActive,
+			Schedulable: true,
+			Concurrency: 1,
+			Priority:    0,
+		},
+		{
+			ID:          2502,
+			Platform:    PlatformOpenAI,
+			Type:        AccountTypeOAuth,
+			Status:      StatusActive,
+			Schedulable: true,
+			Concurrency: 1,
+			Priority:    10,
+		},
+	}
+
+	svc := &OpenAIGatewayService{
+		accountRepo:        schedulerTestOpenAIAccountRepo{accounts: accounts},
+		cache:              &schedulerTestGatewayCache{},
+		cfg:                &config.Config{},
+		rateLimitService:   newOpenAIAdvancedSchedulerRateLimitService("true"),
+		concurrencyService: NewConcurrencyService(schedulerTestConcurrencyCache{}),
+	}
+
+	selection, decision, err := svc.SelectAccountWithSchedulerForAccountType(
+		ctx,
+		&groupID,
+		"",
+		"",
+		"gpt-4o-mini-transcribe",
+		nil,
+		OpenAIUpstreamTransportHTTPSSE,
+		OpenAIAudioTranscriptionsRequiredAccountTypes,
+		false,
+	)
+	require.NoError(t, err)
+	require.NotNil(t, selection)
+	require.NotNil(t, selection.Account)
+	require.Equal(t, AccountTypeOAuth, selection.Account.Type)
+	require.Equal(t, int64(2502), selection.Account.ID)
+	require.Equal(t, openAIAccountScheduleLayerLoadBalance, decision.Layer)
+	require.Equal(t, 1, decision.CandidateCount)
+	if selection.ReleaseFunc != nil {
+		selection.ReleaseFunc()
+	}
+}
+
 func TestOpenAIGatewayService_SelectAccountWithScheduler_LoadBalanceTopKFallback(t *testing.T) {
 	ctx := context.Background()
 	groupID := int64(11)

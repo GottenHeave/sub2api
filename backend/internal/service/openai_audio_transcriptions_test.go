@@ -218,6 +218,10 @@ func TestOpenAIGatewayServiceForwardAudioTranscriptions_OAuthUsesChatGPTTranscri
 	c, rec := newOpenAIAudioTranscriptionTestContext(http.MethodPost, "/transcribe", encoded, contentType)
 	c.Request.Header.Set("X-Codex-Base64", "1")
 	c.Request.Header.Set("User-Agent", "Codex Desktop")
+	c.Request.Header.Set("Authorization", "Bearer client-token")
+	c.Request.Header.Set("chatgpt-account-id", "client-account")
+	c.Request.Header.Set("originator", "client-originator")
+	c.Request.Header.Set("X-Api-Key", "client-api-key")
 
 	upstream := &httpUpstreamRecorder{resp: &http.Response{
 		StatusCode: http.StatusOK,
@@ -254,10 +258,15 @@ func TestOpenAIGatewayServiceForwardAudioTranscriptions_OAuthUsesChatGPTTranscri
 	require.Equal(t, chatgptTranscribeURL, upstream.lastReq.URL.String())
 	require.Equal(t, "chatgpt.com", upstream.lastReq.Host)
 	require.Equal(t, "Bearer oauth-token", upstream.lastReq.Header.Get("Authorization"))
+	require.Len(t, upstream.lastReq.Header.Values("Authorization"), 1)
 	require.Equal(t, "chatgpt-account", upstream.lastReq.Header.Get("chatgpt-account-id"))
-	require.NotEmpty(t, upstream.lastReq.Header.Get("originator"))
+	require.Len(t, upstream.lastReq.Header.Values("chatgpt-account-id"), 1)
+	require.Equal(t, "client-originator", upstream.lastReq.Header.Get("originator"))
+	require.Len(t, upstream.lastReq.Header.Values("originator"), 1)
 	require.Equal(t, codexCLIUserAgent, upstream.lastReq.Header.Get("User-Agent"))
+	require.Len(t, upstream.lastReq.Header.Values("User-Agent"), 1)
 	require.Empty(t, upstream.lastReq.Header.Get("X-Codex-Base64"))
+	require.Empty(t, upstream.lastReq.Header.Get("X-Api-Key"))
 
 	fields := parseMultipartFieldsForTest(t, upstream.lastBody, upstream.lastReq.Header.Get("Content-Type"))
 	require.Equal(t, "codex-audio", fields["file"])

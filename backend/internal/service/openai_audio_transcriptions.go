@@ -25,8 +25,9 @@ const (
 	openAIAudioTranscriptionsURL      = "https://api.openai.com/v1/audio/transcriptions"
 	chatgptTranscribeURL              = "https://chatgpt.com/backend-api/transcribe"
 
-	OpenAIAudioTranscriptionsDefaultModel = "gpt-4o-mini-transcribe"
-	openAIAudioTranscriptionsMaxFieldSize = 1 << 20
+	OpenAIAudioTranscriptionsDefaultModel         = "gpt-4o-mini-transcribe"
+	openAIAudioTranscriptionsMaxFieldSize         = 1 << 20
+	OpenAIAudioTranscriptionsRequiredAccountTypes = AccountTypeAPIKey + "," + AccountTypeOAuth
 )
 
 type OpenAIAudioTranscriptionsRequest struct {
@@ -324,6 +325,20 @@ func (s *OpenAIGatewayService) buildOpenAIAudioTranscriptionsRequest(
 	if err != nil {
 		return nil, err
 	}
+	if c != nil && c.Request != nil {
+		for key, values := range c.Request.Header {
+			lowerKey := strings.ToLower(key)
+			if lowerKey == "x-codex-base64" || !openaiPassthroughAllowedHeaders[lowerKey] {
+				continue
+			}
+			for _, value := range values {
+				req.Header.Add(key, value)
+			}
+		}
+	}
+	req.Header.Del("Authorization")
+	req.Header.Del("X-Api-Key")
+	req.Header.Del("X-Goog-Api-Key")
 	req.Header.Set("Authorization", "Bearer "+token)
 	if account.Type == AccountTypeOAuth {
 		req.Host = "chatgpt.com"
@@ -335,17 +350,6 @@ func (s *OpenAIGatewayService) buildOpenAIAudioTranscriptionsRequest(
 			isCodexOfficialClient = openai.IsCodexOfficialClientByHeaders(c.GetHeader("User-Agent"), c.GetHeader("originator"))
 		}
 		req.Header.Set("originator", resolveOpenAIUpstreamOriginator(c, isCodexOfficialClient))
-	}
-	if c != nil && c.Request != nil {
-		for key, values := range c.Request.Header {
-			lowerKey := strings.ToLower(key)
-			if lowerKey == "x-codex-base64" || !openaiPassthroughAllowedHeaders[lowerKey] {
-				continue
-			}
-			for _, value := range values {
-				req.Header.Add(key, value)
-			}
-		}
 	}
 	if customUA := account.GetOpenAIUserAgent(); customUA != "" {
 		req.Header.Set("User-Agent", customUA)
