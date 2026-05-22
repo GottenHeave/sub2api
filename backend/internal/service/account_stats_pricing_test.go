@@ -227,6 +227,33 @@ func TestCalculateStatsCost_TokenBilling_WithCache(t *testing.T) {
 	require.InDelta(t, 0.95, *result, 1e-12)
 }
 
+func TestCalculateStatsCost_TokenBilling_WithAudioTokens(t *testing.T) {
+	pricing := &ChannelModelPricing{
+		BillingMode:     BillingModeToken,
+		InputPrice:      testPtrFloat64(0.001),
+		OutputPrice:     testPtrFloat64(0.002),
+		CacheWritePrice: testPtrFloat64(0.003),
+		CacheReadPrice:  testPtrFloat64(0.004),
+	}
+	tokens := UsageTokens{
+		InputTokens:              100,
+		OutputTokens:             50,
+		CacheCreationTokens:      30,
+		CacheReadTokens:          20,
+		AudioInputTokens:         10,
+		AudioOutputTokens:        5,
+		AudioCacheCreationTokens: 3,
+		AudioCacheReadTokens:     2,
+	}
+	result := calculateStatsCost(pricing, tokens, 1)
+	require.NotNil(t, result)
+	expected := 100*0.001 +
+		50*0.002 +
+		30*0.003 +
+		20*0.004
+	require.InDelta(t, expected, *result, 1e-12)
+}
+
 func TestCalculateStatsCost_TokenBilling_WithImageOutput(t *testing.T) {
 	pricing := &ChannelModelPricing{
 		BillingMode:      BillingModeToken,
@@ -528,6 +555,27 @@ func TestTryModelFilePricing_WithCacheTokens(t *testing.T) {
 	// 100*0.001 + 50*0.002 + 200*0.003 + 300*0.0005
 	// = 0.1 + 0.1 + 0.6 + 0.15 = 0.95
 	require.InDelta(t, 0.95, *result, 1e-12)
+}
+
+func TestTryModelFilePricing_ChargesCachedAudioInputAsCacheReadOnly(t *testing.T) {
+	bs := newTestBillingServiceWithPrices(map[string]*ModelPricing{
+		"claude-sonnet-4": {
+			InputPricePerToken:          0.001,
+			CacheReadPricePerToken:      0.004,
+			AudioInputPricePerToken:     0.010,
+			AudioCacheReadPricePerToken: 0.040,
+		},
+	})
+	tokens := UsageTokens{
+		InputTokens:          80,
+		CacheReadTokens:      20,
+		AudioInputTokens:     10,
+		AudioCacheReadTokens: 4,
+	}
+	result := tryModelFilePricing(bs, "claude-sonnet-4", tokens)
+	require.NotNil(t, result)
+	expected := 74*0.001 + 6*0.010 + 16*0.004 + 4*0.040
+	require.InDelta(t, expected, *result, 1e-12)
 }
 
 // ---------------------------------------------------------------------------

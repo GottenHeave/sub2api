@@ -37,6 +37,29 @@ func TestParsePricingData_ParsesPriorityAndServiceTierFields(t *testing.T) {
 	require.True(t, pricing.SupportsServiceTier)
 }
 
+func TestParsePricingData_ParsesAudioTokenPricing(t *testing.T) {
+	svc := &PricingService{}
+	body := []byte(`{
+		"gpt-realtime": {
+			"input_cost_per_audio_token": 0.000032,
+			"output_cost_per_audio_token": 0.000064,
+			"cache_creation_input_audio_token_cost": 0.0000004,
+			"cache_read_input_audio_token_cost": 0.00000004,
+			"litellm_provider": "openai",
+			"mode": "chat"
+		}
+	}`)
+
+	data, err := svc.parsePricingData(body)
+	require.NoError(t, err)
+	pricing := data["gpt-realtime"]
+	require.NotNil(t, pricing)
+	require.InDelta(t, 0.000032, pricing.InputCostPerAudioToken, 1e-12)
+	require.InDelta(t, 0.000064, pricing.OutputCostPerAudioToken, 1e-12)
+	require.InDelta(t, 0.0000004, pricing.CacheCreationInputAudioTokenCost, 1e-12)
+	require.InDelta(t, 0.00000004, pricing.CacheReadInputAudioTokenCost, 1e-12)
+}
+
 func TestGetModelPricing_Gpt53CodexSparkUsesGpt51CodexPricing(t *testing.T) {
 	sparkPricing := &LiteLLMModelPricing{InputCostPerToken: 1}
 	gpt53Pricing := &LiteLLMModelPricing{InputCostPerToken: 9}

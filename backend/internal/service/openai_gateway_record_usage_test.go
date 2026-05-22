@@ -176,10 +176,15 @@ func expectedOpenAICost(t *testing.T, svc *OpenAIGatewayService, model string, u
 	t.Helper()
 
 	cost, err := svc.billingService.CalculateCost(model, UsageTokens{
-		InputTokens:         max(usage.InputTokens-usage.CacheReadInputTokens, 0),
-		OutputTokens:        usage.OutputTokens,
-		CacheCreationTokens: usage.CacheCreationInputTokens,
-		CacheReadTokens:     usage.CacheReadInputTokens,
+		InputTokens:              max(usage.InputTokens-usage.CacheReadInputTokens, 0),
+		OutputTokens:             usage.OutputTokens,
+		CacheCreationTokens:      usage.CacheCreationInputTokens,
+		CacheReadTokens:          usage.CacheReadInputTokens,
+		ImageOutputTokens:        usage.ImageOutputTokens,
+		AudioInputTokens:         max(usage.InputAudioTokens-usage.CacheReadAudioTokens, 0),
+		AudioOutputTokens:        usage.OutputAudioTokens,
+		AudioCacheCreationTokens: usage.CacheCreationAudioTokens,
+		AudioCacheReadTokens:     usage.CacheReadAudioTokens,
 	}, multiplier)
 	require.NoError(t, err)
 	return cost
@@ -832,6 +837,49 @@ func TestOpenAIGatewayServiceRecordUsage_ClampsActualInputTokensToZero(t *testin
 	require.NoError(t, err)
 	require.NotNil(t, usageRepo.lastLog)
 	require.Equal(t, 0, usageRepo.lastLog.InputTokens)
+}
+
+func TestOpenAIGatewayServiceRecordUsage_ChargesCachedAudioInputAsCacheReadOnly(t *testing.T) {
+	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+	userRepo := &openAIRecordUsageUserRepoStub{}
+	subRepo := &openAIRecordUsageSubRepoStub{}
+	svc := newOpenAIRecordUsageServiceForTest(usageRepo, userRepo, subRepo, nil)
+	svc.cfg.Default.RateMultiplier = 1
+	svc.billingService.fallbackPrices["gpt-5.4"] = &ModelPricing{
+		InputPricePerToken:          0.001,
+		OutputPricePerToken:         0.002,
+		CacheReadPricePerToken:      0.004,
+		AudioInputPricePerToken:     0.010,
+		AudioCacheReadPricePerToken: 0.040,
+	}
+
+	usage := OpenAIUsage{
+		InputTokens:          100,
+		OutputTokens:         0,
+		CacheReadInputTokens: 20,
+		InputAudioTokens:     10,
+		CacheReadAudioTokens: 4,
+	}
+	err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
+		Result: &OpenAIForwardResult{
+			RequestID: "resp_cached_audio_billing",
+			Usage:     usage,
+			Model:     "gpt-5.1",
+			Duration:  time.Second,
+		},
+		APIKey:  &APIKey{ID: 1007},
+		User:    &User{ID: 2007},
+		Account: &Account{ID: 3007},
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, usageRepo.lastLog)
+	require.Equal(t, 80, usageRepo.lastLog.InputTokens)
+	require.Equal(t, 20, usageRepo.lastLog.CacheReadTokens)
+	require.InDelta(t, 74*0.001+6*0.010, usageRepo.lastLog.InputCost, 1e-12)
+	require.InDelta(t, 16*0.004+4*0.040, usageRepo.lastLog.CacheReadCost, 1e-12)
+	require.InDelta(t, 74*0.001+6*0.010+16*0.004+4*0.040, usageRepo.lastLog.TotalCost, 1e-12)
+	require.InDelta(t, usageRepo.lastLog.TotalCost, userRepo.lastAmount, 1e-12)
 }
 
 func TestOpenAIGatewayServiceRecordUsage_Gpt54LongContextBillsWholeSession(t *testing.T) {
