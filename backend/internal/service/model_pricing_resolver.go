@@ -152,19 +152,24 @@ func (r *ModelPricingResolver) applyTokenOverrides(chPricing *ChannelModelPricin
 	if chPricing.InputPrice != nil {
 		resolved.BasePricing.InputPricePerToken = *chPricing.InputPrice
 		resolved.BasePricing.InputPricePerTokenPriority = *chPricing.InputPrice
+		resolved.BasePricing.AudioInputPricePerToken = *chPricing.InputPrice
+		resolved.BasePricing.AudioInputPricePerTokenPriority = *chPricing.InputPrice
 	}
 	if chPricing.OutputPrice != nil {
 		resolved.BasePricing.OutputPricePerToken = *chPricing.OutputPrice
 		resolved.BasePricing.OutputPricePerTokenPriority = *chPricing.OutputPrice
+		resolved.BasePricing.AudioOutputPricePerToken = *chPricing.OutputPrice
 	}
 	if chPricing.CacheWritePrice != nil {
 		resolved.BasePricing.CacheCreationPricePerToken = *chPricing.CacheWritePrice
 		resolved.BasePricing.CacheCreation5mPrice = *chPricing.CacheWritePrice
 		resolved.BasePricing.CacheCreation1hPrice = *chPricing.CacheWritePrice
+		resolved.BasePricing.AudioCacheCreationPricePerToken = *chPricing.CacheWritePrice
 	}
 	if chPricing.CacheReadPrice != nil {
 		resolved.BasePricing.CacheReadPricePerToken = *chPricing.CacheReadPrice
 		resolved.BasePricing.CacheReadPricePerTokenPriority = *chPricing.CacheReadPrice
+		resolved.BasePricing.AudioCacheReadPricePerToken = *chPricing.CacheReadPrice
 	}
 	if chPricing.ImageOutputPrice != nil {
 		resolved.BasePricing.ImageOutputPricePerToken = *chPricing.ImageOutputPrice
