@@ -1186,8 +1186,12 @@ export interface UsageLog {
 
   input_tokens: number
   output_tokens: number
+  audio_input_tokens?: number
+  audio_output_tokens?: number
   cache_creation_tokens: number
   cache_read_tokens: number
+  audio_cache_creation_tokens?: number
+  audio_cache_read_tokens?: number
   cache_creation_5m_tokens: number
   cache_creation_1h_tokens: number
 

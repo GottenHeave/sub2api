@@ -106,21 +106,21 @@
               <div class="flex items-center gap-2">
                 <div class="inline-flex items-center gap-1">
                   <Icon name="arrowDown" size="sm" class="h-3.5 w-3.5 text-emerald-500" />
-                  <span class="font-medium text-gray-900 dark:text-white">{{ row.input_tokens?.toLocaleString() || 0 }}</span>
+                  <span class="font-medium text-gray-900 dark:text-white">{{ visibleInputTokens(row).toLocaleString() }}</span>
                 </div>
                 <div class="inline-flex items-center gap-1">
                   <Icon name="arrowUp" size="sm" class="h-3.5 w-3.5 text-violet-500" />
-                  <span class="font-medium text-gray-900 dark:text-white">{{ row.output_tokens?.toLocaleString() || 0 }}</span>
+                  <span class="font-medium text-gray-900 dark:text-white">{{ visibleOutputTokens(row).toLocaleString() }}</span>
                 </div>
               </div>
-              <div v-if="row.cache_read_tokens > 0 || row.cache_creation_tokens > 0" class="flex items-center gap-2">
-                <div v-if="row.cache_read_tokens > 0" class="inline-flex items-center gap-1">
+              <div v-if="visibleCacheReadTokens(row) > 0 || visibleCacheCreationTokens(row) > 0" class="flex items-center gap-2">
+                <div v-if="visibleCacheReadTokens(row) > 0" class="inline-flex items-center gap-1">
                   <svg class="h-3.5 w-3.5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
-                  <span class="font-medium text-sky-600 dark:text-sky-400">{{ formatCacheTokens(row.cache_read_tokens) }}</span>
+                  <span class="font-medium text-sky-600 dark:text-sky-400">{{ formatCacheTokens(visibleCacheReadTokens(row)) }}</span>
                 </div>
-                <div v-if="row.cache_creation_tokens > 0" class="inline-flex items-center gap-1">
+                <div v-if="visibleCacheCreationTokens(row) > 0" class="inline-flex items-center gap-1">
                   <svg class="h-3.5 w-3.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                  <span class="font-medium text-amber-600 dark:text-amber-400">{{ formatCacheTokens(row.cache_creation_tokens) }}</span>
+                  <span class="font-medium text-amber-600 dark:text-amber-400">{{ formatCacheTokens(visibleCacheCreationTokens(row)) }}</span>
                   <span v-if="row.cache_creation_1h_tokens > 0" class="inline-flex items-center rounded px-1 py-px text-[10px] font-medium leading-tight bg-orange-100 text-orange-600 ring-1 ring-inset ring-orange-200 dark:bg-orange-500/20 dark:text-orange-400 dark:ring-orange-500/30">1h</span>
                   <span v-if="row.cache_ttl_overridden" :title="t('usage.cacheTtlOverriddenHint')" class="inline-flex items-center rounded px-1 py-px text-[10px] font-medium leading-tight bg-rose-100 text-rose-600 ring-1 ring-inset ring-rose-200 dark:bg-rose-500/20 dark:text-rose-400 dark:ring-rose-500/30 cursor-help">R</span>
                 </div>
@@ -202,15 +202,15 @@
         <div class="space-y-1.5">
           <div>
             <div class="text-xs font-semibold text-gray-300 mb-1">{{ t('usage.tokenDetails') }}</div>
-            <div v-if="tokenTooltipData && tokenTooltipData.input_tokens > 0" class="flex items-center justify-between gap-4">
+            <div v-if="tokenTooltipData && visibleInputTokens(tokenTooltipData) > 0" class="flex items-center justify-between gap-4">
               <span class="text-gray-400">{{ t('admin.usage.inputTokens') }}</span>
-              <span class="font-medium text-white">{{ tokenTooltipData.input_tokens.toLocaleString() }}</span>
+              <span class="font-medium text-white">{{ visibleInputTokens(tokenTooltipData).toLocaleString() }}</span>
             </div>
-            <div v-if="tokenTooltipData && tokenTooltipData.output_tokens > 0" class="flex items-center justify-between gap-4">
+            <div v-if="tokenTooltipData && visibleOutputTokens(tokenTooltipData) > 0" class="flex items-center justify-between gap-4">
               <span class="text-gray-400">{{ t('admin.usage.outputTokens') }}</span>
-              <span class="font-medium text-white">{{ tokenTooltipData.output_tokens.toLocaleString() }}</span>
+              <span class="font-medium text-white">{{ visibleOutputTokens(tokenTooltipData).toLocaleString() }}</span>
             </div>
-            <div v-if="tokenTooltipData && tokenTooltipData.cache_creation_tokens > 0">
+            <div v-if="tokenTooltipData && visibleCacheCreationTokens(tokenTooltipData) > 0">
               <!-- 有 5m/1h 明细时，展开显示 -->
               <template v-if="tokenTooltipData.cache_creation_5m_tokens > 0 || tokenTooltipData.cache_creation_1h_tokens > 0">
                 <div v-if="tokenTooltipData.cache_creation_5m_tokens > 0" class="flex items-center justify-between gap-4">
@@ -231,7 +231,7 @@
               <!-- 无明细时，只显示聚合值 -->
               <div v-else class="flex items-center justify-between gap-4">
                 <span class="text-gray-400">{{ t('admin.usage.cacheCreationTokens') }}</span>
-                <span class="font-medium text-white">{{ tokenTooltipData.cache_creation_tokens.toLocaleString() }}</span>
+                <span class="font-medium text-white">{{ visibleCacheCreationTokens(tokenTooltipData).toLocaleString() }}</span>
               </div>
             </div>
             <div v-if="tokenTooltipData && tokenTooltipData.cache_ttl_overridden" class="flex items-center justify-between gap-4">
@@ -241,14 +241,14 @@
               </span>
               <span class="font-medium text-rose-400">{{ tokenTooltipData.cache_creation_1h_tokens > 0 ? t('usage.cacheTtlOverridden1h') : t('usage.cacheTtlOverridden5m') }}</span>
             </div>
-            <div v-if="tokenTooltipData && tokenTooltipData.cache_read_tokens > 0" class="flex items-center justify-between gap-4">
+            <div v-if="tokenTooltipData && visibleCacheReadTokens(tokenTooltipData) > 0" class="flex items-center justify-between gap-4">
               <span class="text-gray-400">{{ t('admin.usage.cacheReadTokens') }}</span>
-              <span class="font-medium text-white">{{ tokenTooltipData.cache_read_tokens.toLocaleString() }}</span>
+              <span class="font-medium text-white">{{ visibleCacheReadTokens(tokenTooltipData).toLocaleString() }}</span>
             </div>
           </div>
           <div class="flex items-center justify-between gap-6 border-t border-gray-700 pt-1.5">
             <span class="text-gray-400">{{ t('usage.totalTokens') }}</span>
-            <span class="font-semibold text-blue-400">{{ ((tokenTooltipData?.input_tokens || 0) + (tokenTooltipData?.output_tokens || 0) + (tokenTooltipData?.cache_creation_tokens || 0) + (tokenTooltipData?.cache_read_tokens || 0)).toLocaleString() }}</span>
+            <span class="font-semibold text-blue-400">{{ visibleTotalTokens(tokenTooltipData).toLocaleString() }}</span>
           </div>
         </div>
         <div class="absolute right-full top-1/2 h-0 w-0 -translate-y-1/2 border-b-[6px] border-r-[6px] border-t-[6px] border-b-transparent border-r-gray-900 border-t-transparent dark:border-r-gray-800"></div>
@@ -416,6 +416,28 @@ function getDisplayBillingMode(row: Pick<AdminUsageLog, 'billing_mode' | 'image_
     return BILLING_MODE_IMAGE
   }
   return row?.billing_mode
+}
+
+function visibleInputTokens(row: Pick<AdminUsageLog, 'input_tokens' | 'audio_input_tokens'> | null | undefined): number {
+  return (row?.input_tokens ?? 0) + (row?.audio_input_tokens ?? 0)
+}
+
+function visibleOutputTokens(row: Pick<AdminUsageLog, 'output_tokens' | 'audio_output_tokens'> | null | undefined): number {
+  return (row?.output_tokens ?? 0) + (row?.audio_output_tokens ?? 0)
+}
+
+function visibleCacheCreationTokens(
+  row: Pick<AdminUsageLog, 'cache_creation_tokens' | 'audio_cache_creation_tokens'> | null | undefined,
+): number {
+  return (row?.cache_creation_tokens ?? 0) + (row?.audio_cache_creation_tokens ?? 0)
+}
+
+function visibleCacheReadTokens(row: Pick<AdminUsageLog, 'cache_read_tokens' | 'audio_cache_read_tokens'> | null | undefined): number {
+  return (row?.cache_read_tokens ?? 0) + (row?.audio_cache_read_tokens ?? 0)
+}
+
+function visibleTotalTokens(row: AdminUsageLog | null | undefined): number {
+  return visibleInputTokens(row) + visibleOutputTokens(row) + visibleCacheCreationTokens(row) + visibleCacheReadTokens(row)
 }
 
 import DataTable from '@/components/common/DataTable.vue'

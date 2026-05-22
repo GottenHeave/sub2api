@@ -39,6 +39,12 @@ const messages: Record<string, string> = {
   'usage.imageSizeUnknown': 'unknown',
   'usage.imageUnitPrice': 'Per-image price',
   'usage.imageTotalPrice': 'Image total price',
+  'usage.tokenDetails': 'Token Details',
+  'usage.totalTokens': 'Total tokens',
+  'admin.usage.inputTokens': 'Input Tokens',
+  'admin.usage.outputTokens': 'Output Tokens',
+  'admin.usage.cacheCreationTokens': 'Cache Creation Tokens',
+  'admin.usage.cacheReadTokens': 'Cache Read Tokens',
   'admin.usage.billingModeToken': 'Token',
   'admin.usage.billingModePerRequest': 'Per request',
   'admin.usage.billingModeImage': 'Image',
@@ -94,6 +100,29 @@ const baseImageRow = {
   image_output_size: null,
   image_size_source: null,
   image_size_breakdown: null,
+}
+
+const baseTokenRow = {
+  request_id: 'req-admin-token',
+  model: 'gpt-4o-mini',
+  actual_cost: 0,
+  total_cost: 0,
+  account_rate_multiplier: 1,
+  rate_multiplier: 1,
+  service_tier: null,
+  input_cost: 0,
+  output_cost: 0,
+  cache_creation_cost: 0,
+  cache_read_cost: 0,
+  input_tokens: 0,
+  output_tokens: 0,
+  cache_creation_tokens: 0,
+  cache_read_tokens: 0,
+  cache_creation_5m_tokens: 0,
+  cache_creation_1h_tokens: 0,
+  cache_ttl_overridden: false,
+  billing_mode: 'token',
+  image_count: 0,
 }
 
 describe('admin UsageTable tooltip', () => {
@@ -197,6 +226,75 @@ describe('admin UsageTable tooltip', () => {
     const text = wrapper.text()
     expect(text).toContain('claude-sonnet-4')
     expect(text).toContain('claude-sonnet-4-20250514')
+  })
+
+  it('includes audio tokens in the visible token summary and tooltip total', async () => {
+    const wrapper = mount(UsageTable, {
+      props: {
+        data: [
+          {
+            ...baseTokenRow,
+            request_id: 'req-admin-audio-token',
+            model: 'gpt-4o-mini-transcribe',
+            input_tokens: 0,
+            output_tokens: 6,
+            audio_input_tokens: 2046,
+          },
+        ],
+        loading: false,
+        columns: [],
+      },
+      global: {
+        stubs: {
+          DataTable: DataTableStub,
+          EmptyState: true,
+          Icon: true,
+          Teleport: true,
+        },
+      },
+    })
+
+    const text = wrapper.text()
+    expect(text).toContain('2,046')
+    expect(text).toContain('6')
+
+    await wrapper.find('.group.relative').trigger('mouseenter')
+    await nextTick()
+
+    const tooltipText = wrapper.text()
+    expect(tooltipText).toContain('Input Tokens')
+    expect(tooltipText).toContain('2,046')
+    expect(tooltipText).toContain('Total tokens')
+    expect(tooltipText).toContain('2,052')
+  })
+
+  it('keeps text-only token rows unchanged', () => {
+    const wrapper = mount(UsageTable, {
+      props: {
+        data: [
+          {
+            ...baseTokenRow,
+            request_id: 'req-admin-text-token',
+            input_tokens: 1234,
+            output_tokens: 56,
+          },
+        ],
+        loading: false,
+        columns: [],
+      },
+      global: {
+        stubs: {
+          DataTable: DataTableStub,
+          EmptyState: true,
+          Icon: true,
+          Teleport: true,
+        },
+      },
+    })
+
+    const text = wrapper.text()
+    expect(text).toContain('1,234')
+    expect(text).toContain('56')
   })
 
   it.each([
