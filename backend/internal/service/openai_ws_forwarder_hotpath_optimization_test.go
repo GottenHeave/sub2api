@@ -37,6 +37,32 @@ func TestParseOpenAIWSResponseUsageFromCompletedEvent(t *testing.T) {
 	require.Equal(t, 19, usage.InputTokens)
 	require.Equal(t, 5, usage.OutputTokens)
 	require.Equal(t, 4, usage.CacheReadInputTokens)
+
+	parseOpenAIWSResponseUsageFromCompletedEvent(
+		[]byte(`{"type":"response.incomplete","response":{"usage":{"prompt_tokens":21,"completion_tokens":9,"prompt_tokens_details":{"cached_tokens":5,"audio_tokens":7,"cached_tokens_details":{"audio_tokens":2},"cache_creation":{"audio_tokens":1}},"completion_tokens_details":{"audio_tokens":3}}}}`),
+		usage,
+	)
+	require.Equal(t, 21, usage.InputTokens)
+	require.Equal(t, 9, usage.OutputTokens)
+	require.Equal(t, 5, usage.CacheReadInputTokens)
+	require.Equal(t, 7, usage.InputAudioTokens)
+	require.Equal(t, 3, usage.OutputAudioTokens)
+	require.Equal(t, 1, usage.CacheCreationAudioTokens)
+	require.Equal(t, 2, usage.CacheReadAudioTokens)
+}
+
+func TestOpenAIWSEventShouldParseUsageTerminalEvents(t *testing.T) {
+	for _, eventType := range []string{
+		"response.completed",
+		"response.done",
+		"response.failed",
+		"response.incomplete",
+		"response.cancelled",
+		"response.canceled",
+	} {
+		require.True(t, openAIWSEventShouldParseUsage(eventType), eventType)
+	}
+	require.False(t, openAIWSEventShouldParseUsage("response.in_progress"))
 }
 
 func TestOpenAIWSErrorEventHelpers_ConsistentWithWrapper(t *testing.T) {
