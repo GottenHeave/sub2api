@@ -900,6 +900,38 @@ func TestGetModelPricingWithChannel_OverrideAllFields(t *testing.T) {
 	require.InDelta(t, 50e-6, pricing.ImageOutputPricePerToken, 1e-12)
 }
 
+func TestGetModelPricingWithChannel_OverrideAllFieldsAppliesToAudioPrices(t *testing.T) {
+	svc := NewBillingService(&config.Config{}, &PricingService{
+		pricingData: map[string]*LiteLLMModelPricing{
+			"audio-model": {
+				InputCostPerToken:                10e-6,
+				OutputCostPerToken:               20e-6,
+				CacheCreationInputTokenCost:      30e-6,
+				CacheReadInputTokenCost:          40e-6,
+				InputCostPerAudioToken:           100e-6,
+				OutputCostPerAudioToken:          200e-6,
+				CacheCreationInputAudioTokenCost: 300e-6,
+				CacheReadInputAudioTokenCost:     400e-6,
+			},
+		},
+	})
+	chPricing := &ChannelModelPricing{
+		InputPrice:      testPtrFloat64(1e-6),
+		OutputPrice:     testPtrFloat64(2e-6),
+		CacheWritePrice: testPtrFloat64(3e-6),
+		CacheReadPrice:  testPtrFloat64(4e-6),
+	}
+
+	pricing, err := svc.GetModelPricingWithChannel("audio-model", chPricing)
+	require.NoError(t, err)
+
+	require.InDelta(t, 1e-6, pricing.AudioInputPricePerToken, 1e-12)
+	require.InDelta(t, 1e-6, pricing.AudioInputPricePerTokenPriority, 1e-12)
+	require.InDelta(t, 2e-6, pricing.AudioOutputPricePerToken, 1e-12)
+	require.InDelta(t, 3e-6, pricing.AudioCacheCreationPricePerToken, 1e-12)
+	require.InDelta(t, 4e-6, pricing.AudioCacheReadPricePerToken, 1e-12)
+}
+
 func TestGetModelPricingWithChannel_CacheWritePriceAffects5mAnd1h(t *testing.T) {
 	svc := newTestBillingService()
 
