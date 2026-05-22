@@ -214,10 +214,18 @@ func calculateTokenStatsCost(pricing *ChannelModelPricing, tokens UsageTokens) *
 		}
 		return *ptr
 	}
-	cost := float64(tokens.InputTokens)*deref(p.InputPrice) +
-		float64(tokens.OutputTokens)*deref(p.OutputPrice) +
-		float64(tokens.CacheCreationTokens)*deref(p.CacheWritePrice) +
-		float64(tokens.CacheReadTokens)*deref(p.CacheReadPrice) +
+	inputPrice := deref(p.InputPrice)
+	outputPrice := deref(p.OutputPrice)
+	cacheWritePrice := deref(p.CacheWritePrice)
+	cacheReadPrice := deref(p.CacheReadPrice)
+	cost := float64(subtractDetailTokens(tokens.InputTokens, tokens.AudioInputTokens))*inputPrice +
+		float64(subtractDetailTokens(tokens.OutputTokens, tokens.AudioOutputTokens))*outputPrice +
+		float64(subtractDetailTokens(tokens.CacheCreationTokens, tokens.AudioCacheCreationTokens))*cacheWritePrice +
+		float64(subtractDetailTokens(tokens.CacheReadTokens, tokens.AudioCacheReadTokens))*cacheReadPrice +
+		float64(tokens.AudioInputTokens)*inputPrice +
+		float64(tokens.AudioOutputTokens)*outputPrice +
+		float64(tokens.AudioCacheCreationTokens)*cacheWritePrice +
+		float64(tokens.AudioCacheReadTokens)*cacheReadPrice +
 		float64(tokens.ImageOutputTokens)*deref(p.ImageOutputPrice)
 	if cost <= 0 {
 		return nil
