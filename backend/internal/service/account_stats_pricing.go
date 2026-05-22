@@ -65,12 +65,11 @@ func tryModelFilePricing(billingService *BillingService, model string, tokens Us
 	if err != nil || pricing == nil {
 		return nil
 	}
-	freshAudioInputTokens := subtractDetailTokens(tokens.AudioInputTokens, tokens.AudioCacheReadTokens)
-	cost := float64(subtractDetailTokens(tokens.InputTokens, freshAudioInputTokens))*pricing.InputPricePerToken +
+	cost := float64(subtractDetailTokens(tokens.InputTokens, tokens.AudioInputTokens))*pricing.InputPricePerToken +
 		float64(subtractDetailTokens(tokens.OutputTokens, tokens.AudioOutputTokens))*pricing.OutputPricePerToken +
 		float64(subtractDetailTokens(tokens.CacheCreationTokens, tokens.AudioCacheCreationTokens))*pricing.CacheCreationPricePerToken +
 		float64(subtractDetailTokens(tokens.CacheReadTokens, tokens.AudioCacheReadTokens))*pricing.CacheReadPricePerToken +
-		float64(freshAudioInputTokens)*selectPrice(pricing.AudioInputPricePerToken, pricing.InputPricePerToken) +
+		float64(tokens.AudioInputTokens)*selectPrice(pricing.AudioInputPricePerToken, pricing.InputPricePerToken) +
 		float64(tokens.AudioOutputTokens)*selectPrice(pricing.AudioOutputPricePerToken, pricing.OutputPricePerToken) +
 		float64(tokens.AudioCacheCreationTokens)*selectPrice(pricing.AudioCacheCreationPricePerToken, pricing.CacheCreationPricePerToken) +
 		float64(tokens.AudioCacheReadTokens)*selectPrice(pricing.AudioCacheReadPricePerToken, pricing.CacheReadPricePerToken) +
