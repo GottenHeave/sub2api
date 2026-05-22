@@ -88,3 +88,19 @@ func TestGatewayRoutesOpenAIRealtimePathIsRegistered(t *testing.T) {
 	require.NotEqual(t, http.StatusNotFound, w.Code)
 	require.Equal(t, http.StatusUpgradeRequired, w.Code)
 }
+
+func TestGatewayRoutesOpenAIAudioTranscriptionsPathsAreRegistered(t *testing.T) {
+	router := newGatewayRoutesTestRouter()
+
+	for _, path := range []string{
+		"/v1/audio/transcriptions",
+		"/transcribe",
+	} {
+		req := httptest.NewRequest(http.MethodPost, path, strings.NewReader("invalid"))
+		req.Header.Set("Content-Type", "multipart/form-data; boundary=test")
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+		require.NotEqual(t, http.StatusNotFound, w.Code, "path=%s should hit OpenAI audio transcriptions handler", path)
+	}
+}

@@ -41,6 +41,16 @@ func TestOpenAIUpstreamEndpoint_ViaGetUpstreamEndpoint(t *testing.T) {
 			path: "/v1/messages",
 			want: EndpointResponses,
 		},
+		{
+			name: "audio transcriptions stays on audio upstream",
+			path: "/v1/audio/transcriptions",
+			want: EndpointAudioTranscriptions,
+		},
+		{
+			name: "transcribe alias uses audio upstream",
+			path: "/transcribe",
+			want: EndpointAudioTranscriptions,
+		},
 	}
 
 	for _, tt := range tests {
