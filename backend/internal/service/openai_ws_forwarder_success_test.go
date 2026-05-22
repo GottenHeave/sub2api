@@ -77,6 +77,16 @@ func TestOpenAIGatewayService_Forward_WSv2_SuccessAndBindSticky(t *testing.T) {
 					"output_tokens": 7,
 					"input_tokens_details": map[string]any{
 						"cached_tokens": 3,
+						"audio_tokens":  5,
+						"cached_tokens_details": map[string]any{
+							"audio_tokens": 2,
+						},
+						"cache_creation": map[string]any{
+							"audio_tokens": 1,
+						},
+					},
+					"output_tokens_details": map[string]any{
+						"audio_tokens": 4,
 					},
 				},
 			},
@@ -149,6 +159,10 @@ func TestOpenAIGatewayService_Forward_WSv2_SuccessAndBindSticky(t *testing.T) {
 	require.Equal(t, 12, result.Usage.InputTokens)
 	require.Equal(t, 7, result.Usage.OutputTokens)
 	require.Equal(t, 3, result.Usage.CacheReadInputTokens)
+	require.Equal(t, 5, result.Usage.InputAudioTokens)
+	require.Equal(t, 4, result.Usage.OutputAudioTokens)
+	require.Equal(t, 1, result.Usage.CacheCreationAudioTokens)
+	require.Equal(t, 2, result.Usage.CacheReadAudioTokens)
 	require.Equal(t, "resp_new_1", result.RequestID)
 	require.True(t, result.OpenAIWSMode)
 	require.False(t, gjson.GetBytes(upstream.lastBody, "model").Exists(), "WSv2 成功时不应回落 HTTP 上游")
