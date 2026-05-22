@@ -113,7 +113,6 @@ const usageLogSuccessFilterUL = "ul.actual_cost > 0"
 
 const usageLogTokenSumExpr = "input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens + audio_input_tokens + audio_output_tokens + audio_cache_creation_tokens + audio_cache_read_tokens"
 const usageLogTokenSumExprUL = "ul.input_tokens + ul.output_tokens + ul.cache_creation_tokens + ul.cache_read_tokens + ul.audio_input_tokens + ul.audio_output_tokens + ul.audio_cache_creation_tokens + ul.audio_cache_read_tokens"
-const usageLogTokenSumExprU = "u.input_tokens + u.output_tokens + u.cache_creation_tokens + u.cache_read_tokens + u.audio_input_tokens + u.audio_output_tokens + u.audio_cache_creation_tokens + u.audio_cache_read_tokens"
 
 // usageLogEffectivePlatformExpr 用于按"有效平台"维度聚合 usage_logs：
 // 优先取请求实际走的分组 platform，若分组未设置 platform 再 fallback 到 account.platform。
@@ -179,24 +178,6 @@ func userDashboardTodayTokens(stats *UserDashboardStats) int64 {
 	return stats.TodayInputTokens + stats.TodayOutputTokens + stats.TodayCacheCreationTokens + stats.TodayCacheReadTokens +
 		stats.TodayAudioInputTokens + stats.TodayAudioOutputTokens +
 		stats.TodayAudioCacheCreationTokens + stats.TodayAudioCacheReadTokens
-}
-
-func trendTotalTokens(row *TrendDataPoint) int64 {
-	if row == nil {
-		return 0
-	}
-	return row.InputTokens + row.OutputTokens + row.CacheCreationTokens + row.CacheReadTokens +
-		row.AudioInputTokens + row.AudioOutputTokens +
-		row.AudioCacheCreationTokens + row.AudioCacheReadTokens
-}
-
-func modelStatTotalTokens(row *ModelStat) int64 {
-	if row == nil {
-		return 0
-	}
-	return row.InputTokens + row.OutputTokens + row.CacheCreationTokens + row.CacheReadTokens +
-		row.AudioInputTokens + row.AudioOutputTokens +
-		row.AudioCacheCreationTokens + row.AudioCacheReadTokens
 }
 
 // appendRawUsageLogModelWhereCondition keeps direct model filters on the raw model column for backward
