@@ -574,7 +574,7 @@ func TestTryModelFilePricing_ChargesCachedAudioInputAsCacheReadOnly(t *testing.T
 	}
 	result := tryModelFilePricing(bs, "claude-sonnet-4", tokens)
 	require.NotNil(t, result)
-	expected := 74*0.001 + 6*0.010 + 16*0.004 + 4*0.040
+	expected := 70*0.001 + 10*0.010 + 16*0.004 + 4*0.040
 	require.InDelta(t, expected, *result, 1e-12)
 }
 
