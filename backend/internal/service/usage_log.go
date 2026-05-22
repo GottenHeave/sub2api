@@ -131,6 +131,11 @@ type UsageLog struct {
 	CacheCreationTokens int
 	CacheReadTokens     int
 
+	AudioInputTokens         int
+	AudioOutputTokens        int
+	AudioCacheCreationTokens int
+	AudioCacheReadTokens     int
+
 	CacheCreation5mTokens int `gorm:"column:cache_creation_5m_tokens"`
 	CacheCreation1hTokens int `gorm:"column:cache_creation_1h_tokens"`
 
@@ -180,7 +185,8 @@ type UsageLog struct {
 }
 
 func (u *UsageLog) TotalTokens() int {
-	return u.InputTokens + u.OutputTokens + u.CacheCreationTokens + u.CacheReadTokens
+	return u.InputTokens + u.OutputTokens + u.CacheCreationTokens + u.CacheReadTokens +
+		u.AudioInputTokens + u.AudioOutputTokens + u.AudioCacheCreationTokens + u.AudioCacheReadTokens
 }
 
 func (u *UsageLog) EffectiveRequestType() RequestType {

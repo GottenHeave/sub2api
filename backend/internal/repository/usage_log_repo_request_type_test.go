@@ -54,6 +54,10 @@ func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 			log.OutputTokens,
 			log.CacheCreationTokens,
 			log.CacheReadTokens,
+			log.AudioInputTokens,
+			log.AudioOutputTokens,
+			log.AudioCacheCreationTokens,
+			log.AudioCacheReadTokens,
 			log.CacheCreation5mTokens,
 			log.CacheCreation1hTokens,
 			log.ImageOutputTokens,
@@ -137,6 +141,10 @@ func TestUsageLogRepositoryCreate_PersistsServiceTier(t *testing.T) {
 			log.OutputTokens,
 			log.CacheCreationTokens,
 			log.CacheReadTokens,
+			log.AudioInputTokens,
+			log.AudioOutputTokens,
+			log.AudioCacheCreationTokens,
+			log.AudioCacheReadTokens,
 			log.CacheCreation5mTokens,
 			log.CacheCreation1hTokens,
 			log.ImageOutputTokens,
@@ -238,6 +246,31 @@ func TestPrepareUsageLogInsert_ArgCountMatchesTypes(t *testing.T) {
 	require.Len(t, prepared.args, len(usageLogInsertArgTypes))
 }
 
+func TestPrepareUsageLogInsert_PersistsAudioUsageFields(t *testing.T) {
+	prepared := prepareUsageLogInsert(&service.UsageLog{
+		UserID:                   1,
+		APIKeyID:                 2,
+		AccountID:                3,
+		RequestID:                "req-audio-usage",
+		Model:                    "gpt-4o-audio-preview",
+		RequestedModel:           "gpt-4o-audio-preview",
+		InputTokens:              100,
+		OutputTokens:             20,
+		CacheCreationTokens:      8,
+		CacheReadTokens:          7,
+		AudioInputTokens:         11,
+		AudioOutputTokens:        12,
+		AudioCacheCreationTokens: 13,
+		AudioCacheReadTokens:     14,
+		CreatedAt:                time.Date(2025, 1, 5, 13, 0, 0, 0, time.UTC),
+	})
+
+	require.Equal(t, 11, prepared.args[13])
+	require.Equal(t, 12, prepared.args[14])
+	require.Equal(t, 13, prepared.args[15])
+	require.Equal(t, 14, prepared.args[16])
+}
+
 func TestPrepareUsageLogInsert_PersistsImageSizeMetadata(t *testing.T) {
 	imageSize := "4K"
 	inputSize := "1024x1024"
@@ -259,11 +292,11 @@ func TestPrepareUsageLogInsert_PersistsImageSizeMetadata(t *testing.T) {
 		CreatedAt:          time.Date(2025, 1, 6, 12, 0, 0, 0, time.UTC),
 	})
 
-	require.Equal(t, sql.NullString{String: imageSize, Valid: true}, prepared.args[34])
-	require.Equal(t, sql.NullString{String: inputSize, Valid: true}, prepared.args[35])
-	require.Equal(t, sql.NullString{String: outputSize, Valid: true}, prepared.args[36])
-	require.Equal(t, sql.NullString{String: source, Valid: true}, prepared.args[37])
-	breakdownJSON, ok := prepared.args[38].(string)
+	require.Equal(t, sql.NullString{String: imageSize, Valid: true}, prepared.args[38])
+	require.Equal(t, sql.NullString{String: inputSize, Valid: true}, prepared.args[39])
+	require.Equal(t, sql.NullString{String: outputSize, Valid: true}, prepared.args[40])
+	require.Equal(t, sql.NullString{String: source, Valid: true}, prepared.args[41])
+	breakdownJSON, ok := prepared.args[42].(string)
 	require.True(t, ok)
 	require.JSONEq(t, `{"1K":1,"4K":1}`, breakdownJSON)
 }
@@ -352,7 +385,13 @@ func TestUsageLogRepositoryGetUsageTrendWithFiltersRequestTypePriority(t *testin
 
 	mock.ExpectQuery("AND \\(request_type = \\$3 OR \\(request_type = 0 AND stream = TRUE AND openai_ws_mode = FALSE\\)\\)").
 		WithArgs(start, end, requestType).
-		WillReturnRows(sqlmock.NewRows([]string{"date", "requests", "input_tokens", "output_tokens", "cache_creation_tokens", "cache_read_tokens", "total_tokens", "cost", "actual_cost"}))
+		WillReturnRows(sqlmock.NewRows([]string{
+			"date", "requests", "input_tokens", "output_tokens",
+			"cache_creation_tokens", "cache_read_tokens",
+			"audio_input_tokens", "audio_output_tokens",
+			"audio_cache_creation_tokens", "audio_cache_read_tokens",
+			"total_tokens", "cost", "actual_cost",
+		}))
 
 	trend, err := repo.GetUsageTrendWithFilters(context.Background(), start, end, "day", 0, 0, 0, 0, "", &requestType, &stream, nil)
 	require.NoError(t, err)
@@ -371,7 +410,13 @@ func TestUsageLogRepositoryGetModelStatsWithFiltersRequestTypePriority(t *testin
 
 	mock.ExpectQuery("AND \\(request_type = \\$3 OR \\(request_type = 0 AND openai_ws_mode = TRUE\\)\\)").
 		WithArgs(start, end, requestType).
-		WillReturnRows(sqlmock.NewRows([]string{"model", "requests", "input_tokens", "output_tokens", "cache_creation_tokens", "cache_read_tokens", "total_tokens", "cost", "actual_cost", "account_cost"}))
+		WillReturnRows(sqlmock.NewRows([]string{
+			"model", "requests", "input_tokens", "output_tokens",
+			"cache_creation_tokens", "cache_read_tokens",
+			"audio_input_tokens", "audio_output_tokens",
+			"audio_cache_creation_tokens", "audio_cache_read_tokens",
+			"total_tokens", "cost", "actual_cost", "account_cost",
+		}))
 
 	stats, err := repo.GetModelStatsWithFilters(context.Background(), start, end, 0, 0, 0, 0, &requestType, &stream, nil)
 	require.NoError(t, err)
@@ -397,11 +442,15 @@ func TestUsageLogRepositoryGetStatsWithFiltersRequestTypePriority(t *testing.T) 
 			"total_input_tokens",
 			"total_output_tokens",
 			"total_cache_tokens",
+			"total_audio_input_tokens",
+			"total_audio_output_tokens",
+			"total_audio_cache_creation_tokens",
+			"total_audio_cache_read_tokens",
 			"total_cost",
 			"total_actual_cost",
 			"total_account_cost",
 			"avg_duration_ms",
-		}).AddRow(int64(1), int64(2), int64(3), int64(4), 1.2, 1.0, 1.2, 20.0))
+		}).AddRow(int64(1), int64(2), int64(3), int64(4), int64(5), int64(6), int64(7), int64(8), 1.2, 1.0, 1.2, 20.0))
 	mock.ExpectQuery("SELECT COALESCE\\(NULLIF\\(TRIM\\(inbound_endpoint\\), ''\\), 'unknown'\\) AS endpoint").
 		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), requestType).
 		WillReturnRows(sqlmock.NewRows([]string{"endpoint", "requests", "total_tokens", "cost", "actual_cost"}))
@@ -415,7 +464,11 @@ func TestUsageLogRepositoryGetStatsWithFiltersRequestTypePriority(t *testing.T) 
 	stats, err := repo.GetStatsWithFilters(context.Background(), filters)
 	require.NoError(t, err)
 	require.Equal(t, int64(1), stats.TotalRequests)
-	require.Equal(t, int64(9), stats.TotalTokens)
+	require.Equal(t, int64(35), stats.TotalTokens)
+	require.Equal(t, int64(5), stats.TotalAudioInputTokens)
+	require.Equal(t, int64(6), stats.TotalAudioOutputTokens)
+	require.Equal(t, int64(7), stats.TotalAudioCacheCreationTokens)
+	require.Equal(t, int64(8), stats.TotalAudioCacheReadTokens)
 	require.NotNil(t, stats.TotalAccountCost, "TotalAccountCost should always be returned")
 	require.Equal(t, 1.2, *stats.TotalAccountCost)
 	require.NoError(t, mock.ExpectationsWereMet())
@@ -432,11 +485,14 @@ func TestUsageLogRepositoryGetModelStatsAccountCostColumn(t *testing.T) {
 		WithArgs(start, end).
 		WillReturnRows(sqlmock.NewRows([]string{
 			"model", "requests", "input_tokens", "output_tokens",
-			"cache_creation_tokens", "cache_read_tokens", "total_tokens",
+			"cache_creation_tokens", "cache_read_tokens",
+			"audio_input_tokens", "audio_output_tokens",
+			"audio_cache_creation_tokens", "audio_cache_read_tokens",
+			"total_tokens",
 			"cost", "actual_cost", "account_cost",
 		}).
-			AddRow("claude-opus-4-6", int64(10), int64(100), int64(200), int64(5), int64(3), int64(308), 2.5, 2.0, 1.8).
-			AddRow("claude-sonnet-4-6", int64(5), int64(50), int64(100), int64(0), int64(0), int64(150), 1.0, 0.8, 0.7))
+			AddRow("claude-opus-4-6", int64(10), int64(100), int64(200), int64(5), int64(3), int64(7), int64(8), int64(9), int64(10), int64(342), 2.5, 2.0, 1.8).
+			AddRow("claude-sonnet-4-6", int64(5), int64(50), int64(100), int64(0), int64(0), int64(1), int64(2), int64(3), int64(4), int64(160), 1.0, 0.8, 0.7))
 
 	results, err := repo.GetModelStatsWithFilters(context.Background(), start, end, 0, 0, 0, 0, nil, nil, nil)
 	require.NoError(t, err)
@@ -445,6 +501,10 @@ func TestUsageLogRepositoryGetModelStatsAccountCostColumn(t *testing.T) {
 	require.Equal(t, 2.5, results[0].Cost)
 	require.Equal(t, 2.0, results[0].ActualCost)
 	require.Equal(t, 1.8, results[0].AccountCost)
+	require.Equal(t, int64(7), results[0].AudioInputTokens)
+	require.Equal(t, int64(8), results[0].AudioOutputTokens)
+	require.Equal(t, int64(9), results[0].AudioCacheCreationTokens)
+	require.Equal(t, int64(10), results[0].AudioCacheReadTokens)
 	require.Equal(t, "claude-sonnet-4-6", results[1].Model)
 	require.Equal(t, 0.7, results[1].AccountCost)
 	require.NoError(t, mock.ExpectationsWereMet())
@@ -489,9 +549,12 @@ func TestUsageLogRepositoryGetStatsWithFiltersAlwaysReturnsAccountCost(t *testin
 	mock.ExpectQuery("FROM usage_logs").
 		WillReturnRows(sqlmock.NewRows([]string{
 			"total_requests", "total_input_tokens", "total_output_tokens",
-			"total_cache_tokens", "total_cost", "total_actual_cost",
+			"total_cache_tokens",
+			"total_audio_input_tokens", "total_audio_output_tokens",
+			"total_audio_cache_creation_tokens", "total_audio_cache_read_tokens",
+			"total_cost", "total_actual_cost",
 			"total_account_cost", "avg_duration_ms",
-		}).AddRow(int64(50), int64(1000), int64(2000), int64(100), 15.0, 12.5, 11.0, 100.0))
+		}).AddRow(int64(50), int64(1000), int64(2000), int64(100), int64(10), int64(20), int64(30), int64(40), 15.0, 12.5, 11.0, 100.0))
 	mock.ExpectQuery("SELECT COALESCE\\(NULLIF\\(TRIM\\(inbound_endpoint\\)").
 		WillReturnRows(sqlmock.NewRows([]string{"endpoint", "requests", "total_tokens", "cost", "actual_cost"}))
 	mock.ExpectQuery("SELECT COALESCE\\(NULLIF\\(TRIM\\(upstream_endpoint\\)").
@@ -611,7 +674,9 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},
 			sql.NullInt64{},
 			sql.NullInt64{},
-			0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, // text token fields
+			11, 12, 13, 14, // audio token fields
+			0, 0,
 			0, 0.0, // image_output_tokens, image_output_cost
 			0.0, 0.0, 0.0, 0.0, 0.8, 0.8,
 			1.0,
@@ -643,6 +708,10 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			now,
 		}})
 		require.NoError(t, err)
+		require.Equal(t, 11, log.AudioInputTokens)
+		require.Equal(t, 12, log.AudioOutputTokens)
+		require.Equal(t, 13, log.AudioCacheCreationTokens)
+		require.Equal(t, 14, log.AudioCacheReadTokens)
 		require.Equal(t, 2, log.ImageCount)
 		require.NotNil(t, log.ImageSize)
 		require.Equal(t, "4K", *log.ImageSize)
@@ -672,6 +741,10 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			2,                 // output_tokens
 			3,                 // cache_creation_tokens
 			4,                 // cache_read_tokens
+			7,                 // audio_input_tokens
+			8,                 // audio_output_tokens
+			9,                 // audio_cache_creation_tokens
+			10,                // audio_cache_read_tokens
 			5,                 // cache_creation_5m_tokens
 			6,                 // cache_creation_1h_tokens
 			0,                 // image_output_tokens
@@ -731,7 +804,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},
 			sql.NullInt64{},
 			sql.NullInt64{},
-			1, 2, 3, 4, 5, 6,
+			1, 2, 3, 4, 7, 8, 9, 10, 5, 6,
 			0, 0.0, // image_output_tokens, image_output_cost
 			0.1, 0.2, 0.3, 0.4, 1.0, 0.9,
 			1.0,
@@ -783,7 +856,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},
 			sql.NullInt64{},
 			sql.NullInt64{},
-			1, 2, 3, 4, 5, 6,
+			1, 2, 3, 4, 7, 8, 9, 10, 5, 6,
 			0, 0.0, // image_output_tokens, image_output_cost
 			0.1, 0.2, 0.3, 0.4, 1.0, 0.9,
 			1.0,

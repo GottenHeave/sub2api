@@ -353,6 +353,90 @@ func (_u *UsageLogUpdate) AddCacheReadTokens(v int) *UsageLogUpdate {
 	return _u
 }
 
+// SetAudioInputTokens sets the "audio_input_tokens" field.
+func (_u *UsageLogUpdate) SetAudioInputTokens(v int) *UsageLogUpdate {
+	_u.mutation.ResetAudioInputTokens()
+	_u.mutation.SetAudioInputTokens(v)
+	return _u
+}
+
+// SetNillableAudioInputTokens sets the "audio_input_tokens" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableAudioInputTokens(v *int) *UsageLogUpdate {
+	if v != nil {
+		_u.SetAudioInputTokens(*v)
+	}
+	return _u
+}
+
+// AddAudioInputTokens adds value to the "audio_input_tokens" field.
+func (_u *UsageLogUpdate) AddAudioInputTokens(v int) *UsageLogUpdate {
+	_u.mutation.AddAudioInputTokens(v)
+	return _u
+}
+
+// SetAudioOutputTokens sets the "audio_output_tokens" field.
+func (_u *UsageLogUpdate) SetAudioOutputTokens(v int) *UsageLogUpdate {
+	_u.mutation.ResetAudioOutputTokens()
+	_u.mutation.SetAudioOutputTokens(v)
+	return _u
+}
+
+// SetNillableAudioOutputTokens sets the "audio_output_tokens" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableAudioOutputTokens(v *int) *UsageLogUpdate {
+	if v != nil {
+		_u.SetAudioOutputTokens(*v)
+	}
+	return _u
+}
+
+// AddAudioOutputTokens adds value to the "audio_output_tokens" field.
+func (_u *UsageLogUpdate) AddAudioOutputTokens(v int) *UsageLogUpdate {
+	_u.mutation.AddAudioOutputTokens(v)
+	return _u
+}
+
+// SetAudioCacheCreationTokens sets the "audio_cache_creation_tokens" field.
+func (_u *UsageLogUpdate) SetAudioCacheCreationTokens(v int) *UsageLogUpdate {
+	_u.mutation.ResetAudioCacheCreationTokens()
+	_u.mutation.SetAudioCacheCreationTokens(v)
+	return _u
+}
+
+// SetNillableAudioCacheCreationTokens sets the "audio_cache_creation_tokens" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableAudioCacheCreationTokens(v *int) *UsageLogUpdate {
+	if v != nil {
+		_u.SetAudioCacheCreationTokens(*v)
+	}
+	return _u
+}
+
+// AddAudioCacheCreationTokens adds value to the "audio_cache_creation_tokens" field.
+func (_u *UsageLogUpdate) AddAudioCacheCreationTokens(v int) *UsageLogUpdate {
+	_u.mutation.AddAudioCacheCreationTokens(v)
+	return _u
+}
+
+// SetAudioCacheReadTokens sets the "audio_cache_read_tokens" field.
+func (_u *UsageLogUpdate) SetAudioCacheReadTokens(v int) *UsageLogUpdate {
+	_u.mutation.ResetAudioCacheReadTokens()
+	_u.mutation.SetAudioCacheReadTokens(v)
+	return _u
+}
+
+// SetNillableAudioCacheReadTokens sets the "audio_cache_read_tokens" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableAudioCacheReadTokens(v *int) *UsageLogUpdate {
+	if v != nil {
+		_u.SetAudioCacheReadTokens(*v)
+	}
+	return _u
+}
+
+// AddAudioCacheReadTokens adds value to the "audio_cache_read_tokens" field.
+func (_u *UsageLogUpdate) AddAudioCacheReadTokens(v int) *UsageLogUpdate {
+	_u.mutation.AddAudioCacheReadTokens(v)
+	return _u
+}
+
 // SetCacheCreation5mTokens sets the "cache_creation_5m_tokens" field.
 func (_u *UsageLogUpdate) SetCacheCreation5mTokens(v int) *UsageLogUpdate {
 	_u.mutation.ResetCacheCreation5mTokens()
@@ -1072,6 +1156,30 @@ func (_u *UsageLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.AddedCacheReadTokens(); ok {
 		_spec.AddField(usagelog.FieldCacheReadTokens, field.TypeInt, value)
 	}
+	if value, ok := _u.mutation.AudioInputTokens(); ok {
+		_spec.SetField(usagelog.FieldAudioInputTokens, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAudioInputTokens(); ok {
+		_spec.AddField(usagelog.FieldAudioInputTokens, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AudioOutputTokens(); ok {
+		_spec.SetField(usagelog.FieldAudioOutputTokens, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAudioOutputTokens(); ok {
+		_spec.AddField(usagelog.FieldAudioOutputTokens, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AudioCacheCreationTokens(); ok {
+		_spec.SetField(usagelog.FieldAudioCacheCreationTokens, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAudioCacheCreationTokens(); ok {
+		_spec.AddField(usagelog.FieldAudioCacheCreationTokens, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AudioCacheReadTokens(); ok {
+		_spec.SetField(usagelog.FieldAudioCacheReadTokens, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAudioCacheReadTokens(); ok {
+		_spec.AddField(usagelog.FieldAudioCacheReadTokens, field.TypeInt, value)
+	}
 	if value, ok := _u.mutation.CacheCreation5mTokens(); ok {
 		_spec.SetField(usagelog.FieldCacheCreation5mTokens, field.TypeInt, value)
 	}
@@ -1696,6 +1804,90 @@ func (_u *UsageLogUpdateOne) SetNillableCacheReadTokens(v *int) *UsageLogUpdateO
 // AddCacheReadTokens adds value to the "cache_read_tokens" field.
 func (_u *UsageLogUpdateOne) AddCacheReadTokens(v int) *UsageLogUpdateOne {
 	_u.mutation.AddCacheReadTokens(v)
+	return _u
+}
+
+// SetAudioInputTokens sets the "audio_input_tokens" field.
+func (_u *UsageLogUpdateOne) SetAudioInputTokens(v int) *UsageLogUpdateOne {
+	_u.mutation.ResetAudioInputTokens()
+	_u.mutation.SetAudioInputTokens(v)
+	return _u
+}
+
+// SetNillableAudioInputTokens sets the "audio_input_tokens" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableAudioInputTokens(v *int) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetAudioInputTokens(*v)
+	}
+	return _u
+}
+
+// AddAudioInputTokens adds value to the "audio_input_tokens" field.
+func (_u *UsageLogUpdateOne) AddAudioInputTokens(v int) *UsageLogUpdateOne {
+	_u.mutation.AddAudioInputTokens(v)
+	return _u
+}
+
+// SetAudioOutputTokens sets the "audio_output_tokens" field.
+func (_u *UsageLogUpdateOne) SetAudioOutputTokens(v int) *UsageLogUpdateOne {
+	_u.mutation.ResetAudioOutputTokens()
+	_u.mutation.SetAudioOutputTokens(v)
+	return _u
+}
+
+// SetNillableAudioOutputTokens sets the "audio_output_tokens" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableAudioOutputTokens(v *int) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetAudioOutputTokens(*v)
+	}
+	return _u
+}
+
+// AddAudioOutputTokens adds value to the "audio_output_tokens" field.
+func (_u *UsageLogUpdateOne) AddAudioOutputTokens(v int) *UsageLogUpdateOne {
+	_u.mutation.AddAudioOutputTokens(v)
+	return _u
+}
+
+// SetAudioCacheCreationTokens sets the "audio_cache_creation_tokens" field.
+func (_u *UsageLogUpdateOne) SetAudioCacheCreationTokens(v int) *UsageLogUpdateOne {
+	_u.mutation.ResetAudioCacheCreationTokens()
+	_u.mutation.SetAudioCacheCreationTokens(v)
+	return _u
+}
+
+// SetNillableAudioCacheCreationTokens sets the "audio_cache_creation_tokens" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableAudioCacheCreationTokens(v *int) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetAudioCacheCreationTokens(*v)
+	}
+	return _u
+}
+
+// AddAudioCacheCreationTokens adds value to the "audio_cache_creation_tokens" field.
+func (_u *UsageLogUpdateOne) AddAudioCacheCreationTokens(v int) *UsageLogUpdateOne {
+	_u.mutation.AddAudioCacheCreationTokens(v)
+	return _u
+}
+
+// SetAudioCacheReadTokens sets the "audio_cache_read_tokens" field.
+func (_u *UsageLogUpdateOne) SetAudioCacheReadTokens(v int) *UsageLogUpdateOne {
+	_u.mutation.ResetAudioCacheReadTokens()
+	_u.mutation.SetAudioCacheReadTokens(v)
+	return _u
+}
+
+// SetNillableAudioCacheReadTokens sets the "audio_cache_read_tokens" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableAudioCacheReadTokens(v *int) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetAudioCacheReadTokens(*v)
+	}
+	return _u
+}
+
+// AddAudioCacheReadTokens adds value to the "audio_cache_read_tokens" field.
+func (_u *UsageLogUpdateOne) AddAudioCacheReadTokens(v int) *UsageLogUpdateOne {
+	_u.mutation.AddAudioCacheReadTokens(v)
 	return _u
 }
 
@@ -2447,6 +2639,30 @@ func (_u *UsageLogUpdateOne) sqlSave(ctx context.Context) (_node *UsageLog, err 
 	}
 	if value, ok := _u.mutation.AddedCacheReadTokens(); ok {
 		_spec.AddField(usagelog.FieldCacheReadTokens, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AudioInputTokens(); ok {
+		_spec.SetField(usagelog.FieldAudioInputTokens, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAudioInputTokens(); ok {
+		_spec.AddField(usagelog.FieldAudioInputTokens, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AudioOutputTokens(); ok {
+		_spec.SetField(usagelog.FieldAudioOutputTokens, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAudioOutputTokens(); ok {
+		_spec.AddField(usagelog.FieldAudioOutputTokens, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AudioCacheCreationTokens(); ok {
+		_spec.SetField(usagelog.FieldAudioCacheCreationTokens, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAudioCacheCreationTokens(); ok {
+		_spec.AddField(usagelog.FieldAudioCacheCreationTokens, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AudioCacheReadTokens(); ok {
+		_spec.SetField(usagelog.FieldAudioCacheReadTokens, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAudioCacheReadTokens(); ok {
+		_spec.AddField(usagelog.FieldAudioCacheReadTokens, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.CacheCreation5mTokens(); ok {
 		_spec.SetField(usagelog.FieldCacheCreation5mTokens, field.TypeInt, value)

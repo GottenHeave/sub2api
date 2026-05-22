@@ -50,26 +50,34 @@ type DashboardStats struct {
 	OverloadAccounts  int64 `json:"overload_accounts"`  // 过载账户数
 
 	// 累计 Token 使用统计
-	TotalRequests            int64   `json:"total_requests"`
-	TotalInputTokens         int64   `json:"total_input_tokens"`
-	TotalOutputTokens        int64   `json:"total_output_tokens"`
-	TotalCacheCreationTokens int64   `json:"total_cache_creation_tokens"`
-	TotalCacheReadTokens     int64   `json:"total_cache_read_tokens"`
-	TotalTokens              int64   `json:"total_tokens"`
-	TotalCost                float64 `json:"total_cost"`         // 累计标准计费
-	TotalActualCost          float64 `json:"total_actual_cost"`  // 累计实际扣除
-	TotalAccountCost         float64 `json:"total_account_cost"` // 累计账号成本
+	TotalRequests                 int64   `json:"total_requests"`
+	TotalInputTokens              int64   `json:"total_input_tokens"`
+	TotalOutputTokens             int64   `json:"total_output_tokens"`
+	TotalCacheCreationTokens      int64   `json:"total_cache_creation_tokens"`
+	TotalCacheReadTokens          int64   `json:"total_cache_read_tokens"`
+	TotalAudioInputTokens         int64   `json:"total_audio_input_tokens"`
+	TotalAudioOutputTokens        int64   `json:"total_audio_output_tokens"`
+	TotalAudioCacheCreationTokens int64   `json:"total_audio_cache_creation_tokens"`
+	TotalAudioCacheReadTokens     int64   `json:"total_audio_cache_read_tokens"`
+	TotalTokens                   int64   `json:"total_tokens"`
+	TotalCost                     float64 `json:"total_cost"`         // 累计标准计费
+	TotalActualCost               float64 `json:"total_actual_cost"`  // 累计实际扣除
+	TotalAccountCost              float64 `json:"total_account_cost"` // 累计账号成本
 
 	// 今日 Token 使用统计
-	TodayRequests            int64   `json:"today_requests"`
-	TodayInputTokens         int64   `json:"today_input_tokens"`
-	TodayOutputTokens        int64   `json:"today_output_tokens"`
-	TodayCacheCreationTokens int64   `json:"today_cache_creation_tokens"`
-	TodayCacheReadTokens     int64   `json:"today_cache_read_tokens"`
-	TodayTokens              int64   `json:"today_tokens"`
-	TodayCost                float64 `json:"today_cost"`         // 今日标准计费
-	TodayActualCost          float64 `json:"today_actual_cost"`  // 今日实际扣除
-	TodayAccountCost         float64 `json:"today_account_cost"` // 今日账号成本
+	TodayRequests                 int64   `json:"today_requests"`
+	TodayInputTokens              int64   `json:"today_input_tokens"`
+	TodayOutputTokens             int64   `json:"today_output_tokens"`
+	TodayCacheCreationTokens      int64   `json:"today_cache_creation_tokens"`
+	TodayCacheReadTokens          int64   `json:"today_cache_read_tokens"`
+	TodayAudioInputTokens         int64   `json:"today_audio_input_tokens"`
+	TodayAudioOutputTokens        int64   `json:"today_audio_output_tokens"`
+	TodayAudioCacheCreationTokens int64   `json:"today_audio_cache_creation_tokens"`
+	TodayAudioCacheReadTokens     int64   `json:"today_audio_cache_read_tokens"`
+	TodayTokens                   int64   `json:"today_tokens"`
+	TodayCost                     float64 `json:"today_cost"`         // 今日标准计费
+	TodayActualCost               float64 `json:"today_actual_cost"`  // 今日实际扣除
+	TodayAccountCost              float64 `json:"today_account_cost"` // 今日账号成本
 
 	// 系统运行统计
 	AverageDurationMs float64 `json:"average_duration_ms"` // 平均响应时间
@@ -81,29 +89,37 @@ type DashboardStats struct {
 
 // TrendDataPoint represents a single point in trend data
 type TrendDataPoint struct {
-	Date                string  `json:"date"`
-	Requests            int64   `json:"requests"`
-	InputTokens         int64   `json:"input_tokens"`
-	OutputTokens        int64   `json:"output_tokens"`
-	CacheCreationTokens int64   `json:"cache_creation_tokens"`
-	CacheReadTokens     int64   `json:"cache_read_tokens"`
-	TotalTokens         int64   `json:"total_tokens"`
-	Cost                float64 `json:"cost"`        // 标准计费
-	ActualCost          float64 `json:"actual_cost"` // 实际扣除
+	Date                     string  `json:"date"`
+	Requests                 int64   `json:"requests"`
+	InputTokens              int64   `json:"input_tokens"`
+	OutputTokens             int64   `json:"output_tokens"`
+	CacheCreationTokens      int64   `json:"cache_creation_tokens"`
+	CacheReadTokens          int64   `json:"cache_read_tokens"`
+	AudioInputTokens         int64   `json:"audio_input_tokens"`
+	AudioOutputTokens        int64   `json:"audio_output_tokens"`
+	AudioCacheCreationTokens int64   `json:"audio_cache_creation_tokens"`
+	AudioCacheReadTokens     int64   `json:"audio_cache_read_tokens"`
+	TotalTokens              int64   `json:"total_tokens"`
+	Cost                     float64 `json:"cost"`        // 标准计费
+	ActualCost               float64 `json:"actual_cost"` // 实际扣除
 }
 
 // ModelStat represents usage statistics for a single model
 type ModelStat struct {
-	Model               string  `json:"model"`
-	Requests            int64   `json:"requests"`
-	InputTokens         int64   `json:"input_tokens"`
-	OutputTokens        int64   `json:"output_tokens"`
-	CacheCreationTokens int64   `json:"cache_creation_tokens"`
-	CacheReadTokens     int64   `json:"cache_read_tokens"`
-	TotalTokens         int64   `json:"total_tokens"`
-	Cost                float64 `json:"cost"`         // 标准计费
-	ActualCost          float64 `json:"actual_cost"`  // 实际扣除
-	AccountCost         float64 `json:"account_cost"` // 账号成本
+	Model                    string  `json:"model"`
+	Requests                 int64   `json:"requests"`
+	InputTokens              int64   `json:"input_tokens"`
+	OutputTokens             int64   `json:"output_tokens"`
+	CacheCreationTokens      int64   `json:"cache_creation_tokens"`
+	CacheReadTokens          int64   `json:"cache_read_tokens"`
+	AudioInputTokens         int64   `json:"audio_input_tokens"`
+	AudioOutputTokens        int64   `json:"audio_output_tokens"`
+	AudioCacheCreationTokens int64   `json:"audio_cache_creation_tokens"`
+	AudioCacheReadTokens     int64   `json:"audio_cache_read_tokens"`
+	TotalTokens              int64   `json:"total_tokens"`
+	Cost                     float64 `json:"cost"`         // 标准计费
+	ActualCost               float64 `json:"actual_cost"`  // 实际扣除
+	AccountCost              float64 `json:"account_cost"` // 账号成本
 }
 
 // EndpointStat represents usage statistics for a single request endpoint.
@@ -218,24 +234,32 @@ type UserDashboardStats struct {
 	ActiveAPIKeys int64 `json:"active_api_keys"`
 
 	// 累计 Token 使用统计
-	TotalRequests            int64   `json:"total_requests"`
-	TotalInputTokens         int64   `json:"total_input_tokens"`
-	TotalOutputTokens        int64   `json:"total_output_tokens"`
-	TotalCacheCreationTokens int64   `json:"total_cache_creation_tokens"`
-	TotalCacheReadTokens     int64   `json:"total_cache_read_tokens"`
-	TotalTokens              int64   `json:"total_tokens"`
-	TotalCost                float64 `json:"total_cost"`        // 累计标准计费
-	TotalActualCost          float64 `json:"total_actual_cost"` // 累计实际扣除
+	TotalRequests                 int64   `json:"total_requests"`
+	TotalInputTokens              int64   `json:"total_input_tokens"`
+	TotalOutputTokens             int64   `json:"total_output_tokens"`
+	TotalCacheCreationTokens      int64   `json:"total_cache_creation_tokens"`
+	TotalCacheReadTokens          int64   `json:"total_cache_read_tokens"`
+	TotalAudioInputTokens         int64   `json:"total_audio_input_tokens"`
+	TotalAudioOutputTokens        int64   `json:"total_audio_output_tokens"`
+	TotalAudioCacheCreationTokens int64   `json:"total_audio_cache_creation_tokens"`
+	TotalAudioCacheReadTokens     int64   `json:"total_audio_cache_read_tokens"`
+	TotalTokens                   int64   `json:"total_tokens"`
+	TotalCost                     float64 `json:"total_cost"`        // 累计标准计费
+	TotalActualCost               float64 `json:"total_actual_cost"` // 累计实际扣除
 
 	// 今日 Token 使用统计
-	TodayRequests            int64   `json:"today_requests"`
-	TodayInputTokens         int64   `json:"today_input_tokens"`
-	TodayOutputTokens        int64   `json:"today_output_tokens"`
-	TodayCacheCreationTokens int64   `json:"today_cache_creation_tokens"`
-	TodayCacheReadTokens     int64   `json:"today_cache_read_tokens"`
-	TodayTokens              int64   `json:"today_tokens"`
-	TodayCost                float64 `json:"today_cost"`        // 今日标准计费
-	TodayActualCost          float64 `json:"today_actual_cost"` // 今日实际扣除
+	TodayRequests                 int64   `json:"today_requests"`
+	TodayInputTokens              int64   `json:"today_input_tokens"`
+	TodayOutputTokens             int64   `json:"today_output_tokens"`
+	TodayCacheCreationTokens      int64   `json:"today_cache_creation_tokens"`
+	TodayCacheReadTokens          int64   `json:"today_cache_read_tokens"`
+	TodayAudioInputTokens         int64   `json:"today_audio_input_tokens"`
+	TodayAudioOutputTokens        int64   `json:"today_audio_output_tokens"`
+	TodayAudioCacheCreationTokens int64   `json:"today_audio_cache_creation_tokens"`
+	TodayAudioCacheReadTokens     int64   `json:"today_audio_cache_read_tokens"`
+	TodayTokens                   int64   `json:"today_tokens"`
+	TodayCost                     float64 `json:"today_cost"`        // 今日标准计费
+	TodayActualCost               float64 `json:"today_actual_cost"` // 今日实际扣除
 
 	// 性能统计
 	AverageDurationMs float64 `json:"average_duration_ms"`
@@ -278,18 +302,22 @@ type UsageLogFilters struct {
 
 // UsageStats represents usage statistics
 type UsageStats struct {
-	TotalRequests     int64          `json:"total_requests"`
-	TotalInputTokens  int64          `json:"total_input_tokens"`
-	TotalOutputTokens int64          `json:"total_output_tokens"`
-	TotalCacheTokens  int64          `json:"total_cache_tokens"`
-	TotalTokens       int64          `json:"total_tokens"`
-	TotalCost         float64        `json:"total_cost"`
-	TotalActualCost   float64        `json:"total_actual_cost"`
-	TotalAccountCost  *float64       `json:"total_account_cost,omitempty"`
-	AverageDurationMs float64        `json:"average_duration_ms"`
-	Endpoints         []EndpointStat `json:"endpoints,omitempty"`
-	UpstreamEndpoints []EndpointStat `json:"upstream_endpoints,omitempty"`
-	EndpointPaths     []EndpointStat `json:"endpoint_paths,omitempty"`
+	TotalRequests                 int64          `json:"total_requests"`
+	TotalInputTokens              int64          `json:"total_input_tokens"`
+	TotalOutputTokens             int64          `json:"total_output_tokens"`
+	TotalCacheTokens              int64          `json:"total_cache_tokens"`
+	TotalAudioInputTokens         int64          `json:"total_audio_input_tokens"`
+	TotalAudioOutputTokens        int64          `json:"total_audio_output_tokens"`
+	TotalAudioCacheCreationTokens int64          `json:"total_audio_cache_creation_tokens"`
+	TotalAudioCacheReadTokens     int64          `json:"total_audio_cache_read_tokens"`
+	TotalTokens                   int64          `json:"total_tokens"`
+	TotalCost                     float64        `json:"total_cost"`
+	TotalActualCost               float64        `json:"total_actual_cost"`
+	TotalAccountCost              *float64       `json:"total_account_cost,omitempty"`
+	AverageDurationMs             float64        `json:"average_duration_ms"`
+	Endpoints                     []EndpointStat `json:"endpoints,omitempty"`
+	UpstreamEndpoints             []EndpointStat `json:"upstream_endpoints,omitempty"`
+	EndpointPaths                 []EndpointStat `json:"endpoint_paths,omitempty"`
 }
 
 // PlatformUsage 表示某用户/某 API key 在单个"有效平台"维度的用量明细。
