@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -361,6 +362,66 @@ func TestHandleFailoverError_SameAccountRetry(t *testing.T) {
 		action = fs.HandleFailoverError(context.Background(), mock, 100, "openai", err)
 		require.Equal(t, FailoverContinue, action)
 		require.Len(t, mock.calls, 2, "第二次耗尽也应调用 TempUnschedule")
+	})
+}
+
+func TestHandleFailoverError_AudioTranscriptionFailoverIntendedFlow(t *testing.T) {
+	t.Run("401_403_429同账号重试到上限后切换账号", func(t *testing.T) {
+		for _, statusCode := range []int{401, 403, 429} {
+			t.Run(fmt.Sprintf("status_%d", statusCode), func(t *testing.T) {
+				mock := &mockTempUnscheduler{}
+				fs := NewFailoverState(2, false)
+				err := newTestFailoverErr(statusCode, true, false)
+
+				for i := 1; i <= maxSameAccountRetries; i++ {
+					action := fs.HandleFailoverError(context.Background(), mock, 101, service.PlatformOpenAI, err)
+					require.Equal(t, FailoverContinue, action)
+					require.Equal(t, i, fs.SameAccountRetryCount[101])
+					require.NotContains(t, fs.FailedAccountIDs, int64(101))
+				}
+
+				action := fs.HandleFailoverError(context.Background(), mock, 101, service.PlatformOpenAI, err)
+				require.Equal(t, FailoverContinue, action)
+				require.Equal(t, 1, fs.SwitchCount)
+				require.Contains(t, fs.FailedAccountIDs, int64(101))
+				require.Len(t, mock.calls, 1)
+				require.Equal(t, int64(101), mock.calls[0].accountID)
+				require.Equal(t, statusCode, mock.calls[0].failoverErr.StatusCode)
+			})
+		}
+	})
+
+	t.Run("5xx直接切换账号不做同账号重试", func(t *testing.T) {
+		for _, statusCode := range []int{500, 502, 503} {
+			t.Run(fmt.Sprintf("status_%d", statusCode), func(t *testing.T) {
+				mock := &mockTempUnscheduler{}
+				fs := NewFailoverState(2, false)
+				err := newTestFailoverErr(statusCode, false, false)
+
+				action := fs.HandleFailoverError(context.Background(), mock, 201, service.PlatformOpenAI, err)
+
+				require.Equal(t, FailoverContinue, action)
+				require.Equal(t, 1, fs.SwitchCount)
+				require.Empty(t, fs.SameAccountRetryCount)
+				require.Contains(t, fs.FailedAccountIDs, int64(201))
+				require.Empty(t, mock.calls)
+			})
+		}
+	})
+
+	t.Run("切换次数耗尽返回失败", func(t *testing.T) {
+		mock := &mockTempUnscheduler{}
+		fs := NewFailoverState(1, false)
+
+		action := fs.HandleFailoverError(context.Background(), mock, 301, service.PlatformOpenAI, newTestFailoverErr(500, false, false))
+		require.Equal(t, FailoverContinue, action)
+		require.Equal(t, 1, fs.SwitchCount)
+
+		action = fs.HandleFailoverError(context.Background(), mock, 302, service.PlatformOpenAI, newTestFailoverErr(503, false, false))
+		require.Equal(t, FailoverExhausted, action)
+		require.Equal(t, 1, fs.SwitchCount)
+		require.Contains(t, fs.FailedAccountIDs, int64(301))
+		require.Contains(t, fs.FailedAccountIDs, int64(302))
 	})
 }
 

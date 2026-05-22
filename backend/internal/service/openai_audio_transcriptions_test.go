@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"errors"
 	"io"
 	"mime"
 	"mime/multipart"
@@ -155,6 +156,106 @@ func TestOpenAIGatewayServiceForwardAudioTranscriptions_APIKeyUsesMappedModelAnd
 	require.Equal(t, "upstream-transcribe", fields["model"])
 	require.Equal(t, "client-transcribe", result.Model)
 	require.Equal(t, "upstream-transcribe", result.UpstreamModel)
+}
+
+func TestOpenAIGatewayServiceForwardAudioTranscriptions_UsagePolicy(t *testing.T) {
+	tests := []struct {
+		name          string
+		path          string
+		fields        map[string]string
+		responseBody  string
+		expectedUsage OpenAIUsage
+	}{
+		{
+			name:         "standard endpoint no usage records explicit zero tokens",
+			path:         "/v1/audio/transcriptions",
+			fields:       map[string]string{"model": "gpt-4o-mini-transcribe"},
+			responseBody: `{"text":"hello"}`,
+		},
+		{
+			name:         "transcribe alias no usage records explicit zero tokens",
+			path:         "/transcribe",
+			fields:       map[string]string{"language": "en"},
+			responseBody: `{"text":"hello"}`,
+		},
+		{
+			name:         "standard endpoint top-level usage",
+			path:         "/v1/audio/transcriptions",
+			fields:       map[string]string{"model": "gpt-4o-mini-transcribe"},
+			responseBody: `{"text":"hello","usage":{"input_tokens":11,"output_tokens":3,"input_token_details":{"audio_tokens":7,"cached_tokens":2,"cached_tokens_details":{"audio_tokens":1}},"output_token_details":{"audio_tokens":2}}}`,
+			expectedUsage: OpenAIUsage{
+				InputTokens:          11,
+				OutputTokens:         3,
+				CacheReadInputTokens: 2,
+				InputAudioTokens:     7,
+				OutputAudioTokens:    2,
+				CacheReadAudioTokens: 1,
+			},
+		},
+		{
+			name:         "standard endpoint response usage",
+			path:         "/v1/audio/transcriptions",
+			fields:       map[string]string{"model": "gpt-4o-mini-transcribe"},
+			responseBody: `{"text":"hello","response":{"usage":{"input_tokens":12,"output_tokens":4,"input_tokens_details":{"audio_tokens":6,"cached_tokens":3,"cached_tokens_details":{"audio_tokens":2}},"output_tokens_details":{"audio_tokens":1}}}}`,
+			expectedUsage: OpenAIUsage{
+				InputTokens:          12,
+				OutputTokens:         4,
+				CacheReadInputTokens: 3,
+				InputAudioTokens:     6,
+				OutputAudioTokens:    1,
+				CacheReadAudioTokens: 2,
+			},
+		},
+		{
+			name:         "transcribe alias top-level usage",
+			path:         "/transcribe",
+			fields:       map[string]string{"language": "en"},
+			responseBody: `{"text":"hello","usage":{"input_tokens":10,"output_tokens":2,"input_token_details":{"audio_tokens":5,"cached_tokens":1,"cached_tokens_details":{"audio_tokens":1}},"output_token_details":{"audio_tokens":2}}}`,
+			expectedUsage: OpenAIUsage{
+				InputTokens:          10,
+				OutputTokens:         2,
+				CacheReadInputTokens: 1,
+				InputAudioTokens:     5,
+				OutputAudioTokens:    2,
+				CacheReadAudioTokens: 1,
+			},
+		},
+		{
+			name:         "transcribe alias response usage",
+			path:         "/transcribe",
+			fields:       map[string]string{"language": "en"},
+			responseBody: `{"text":"hello","response":{"usage":{"prompt_tokens":13,"completion_tokens":5,"prompt_tokens_details":{"audio_tokens":8,"cached_tokens":4,"cached_tokens_details":{"audio_tokens":3}},"completion_tokens_details":{"audio_tokens":2}}}}`,
+			expectedUsage: OpenAIUsage{
+				InputTokens:          13,
+				OutputTokens:         5,
+				CacheReadInputTokens: 4,
+				InputAudioTokens:     8,
+				OutputAudioTokens:    2,
+				CacheReadAudioTokens: 3,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			body, contentType := buildOpenAIAudioTranscriptionMultipart(t, tt.fields, []byte("fake-audio"))
+			c, rec := newOpenAIAudioTranscriptionTestContext(http.MethodPost, tt.path, body, contentType)
+
+			upstream := &httpUpstreamRecorder{resp: newOpenAIAudioTranscriptionResponse(http.StatusOK, tt.responseBody)}
+			svc := &OpenAIGatewayService{
+				cfg:          &config.Config{},
+				httpUpstream: upstream,
+			}
+
+			parsed, err := svc.ParseOpenAIAudioTranscriptionsRequest(c, body)
+			require.NoError(t, err)
+			result, err := svc.ForwardAudioTranscriptions(context.Background(), c, openAIAudioTranscriptionAPIKeyAccount(7), parsed, "")
+			require.NoError(t, err)
+			require.NotNil(t, result)
+			require.Equal(t, http.StatusOK, rec.Code)
+			require.Equal(t, tt.expectedUsage, result.Usage)
+		})
+	}
 }
 
 func TestOpenAIGatewayServiceParseAndForwardTranscribeAlias_DefaultModelAndBase64(t *testing.T) {
@@ -322,6 +423,74 @@ func TestOpenAIGatewayServiceForwardAudioTranscriptions_OAuthPreservesExplicitMa
 	require.Equal(t, "upstream-transcribe", result.UpstreamModel)
 }
 
+func TestOpenAIGatewayServiceForwardAudioTranscriptions_FailoverStatuses(t *testing.T) {
+	tests := []struct {
+		name                 string
+		status               int
+		poolMode             bool
+		retryableSameAccount bool
+	}{
+		{name: "401 retries same pool account", status: http.StatusUnauthorized, poolMode: true, retryableSameAccount: true},
+		{name: "403 retries same pool account", status: http.StatusForbidden, poolMode: true, retryableSameAccount: true},
+		{name: "429 retries same pool account", status: http.StatusTooManyRequests, poolMode: true, retryableSameAccount: true},
+		{name: "500 switches account without same-account retry", status: http.StatusInternalServerError, poolMode: true},
+		{name: "503 switches account without same-account retry", status: http.StatusServiceUnavailable, poolMode: true},
+		{name: "401 non-pool switches account", status: http.StatusUnauthorized},
+		{name: "403 non-pool switches account", status: http.StatusForbidden},
+		{name: "429 non-pool switches account", status: http.StatusTooManyRequests},
+		{name: "500 non-pool switches account", status: http.StatusInternalServerError},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			body, contentType := buildOpenAIAudioTranscriptionMultipart(t, map[string]string{
+				"model": "gpt-4o-mini-transcribe",
+			}, []byte("fake-audio"))
+			c, rec := newOpenAIAudioTranscriptionTestContext(http.MethodPost, "/v1/audio/transcriptions", body, contentType)
+			upstream := &httpUpstreamRecorder{resp: newOpenAIAudioTranscriptionResponse(tt.status, `{"error":{"message":"temporary upstream failure"}}`)}
+			svc := &OpenAIGatewayService{
+				cfg:          &config.Config{},
+				httpUpstream: upstream,
+			}
+			account := openAIAudioTranscriptionAPIKeyAccount(7)
+			if tt.poolMode {
+				account.Credentials["pool_mode"] = true
+			}
+
+			parsed, err := svc.ParseOpenAIAudioTranscriptionsRequest(c, body)
+			require.NoError(t, err)
+			result, err := svc.ForwardAudioTranscriptions(context.Background(), c, account, parsed, "")
+			require.Nil(t, result)
+
+			var failoverErr *UpstreamFailoverError
+			require.ErrorAs(t, err, &failoverErr)
+			require.Equal(t, tt.status, failoverErr.StatusCode)
+			require.Equal(t, tt.retryableSameAccount, failoverErr.RetryableOnSameAccount)
+			require.False(t, rec.Result().Header.Get("Content-Type") == "application/json" && rec.Body.Len() > 0, "failover response should not be written before handler retry logic")
+		})
+	}
+}
+
+func TestOpenAIGatewayServiceForwardAudioTranscriptions_RequestErrorIsNotFailover(t *testing.T) {
+	body, contentType := buildOpenAIAudioTranscriptionMultipart(t, map[string]string{
+		"model": "gpt-4o-mini-transcribe",
+	}, []byte("fake-audio"))
+	c, _ := newOpenAIAudioTranscriptionTestContext(http.MethodPost, "/v1/audio/transcriptions", body, contentType)
+	svc := &OpenAIGatewayService{
+		cfg:          &config.Config{},
+		httpUpstream: &httpUpstreamRecorder{err: errors.New("dial failed")},
+	}
+
+	parsed, err := svc.ParseOpenAIAudioTranscriptionsRequest(c, body)
+	require.NoError(t, err)
+	result, err := svc.ForwardAudioTranscriptions(context.Background(), c, openAIAudioTranscriptionAPIKeyAccount(7), parsed, "")
+
+	require.Nil(t, result)
+	require.Error(t, err)
+	var failoverErr *UpstreamFailoverError
+	require.False(t, errors.As(err, &failoverErr))
+}
+
 func TestOpenAIGatewayServiceForwardAudioTranscriptions_RejectsUnsupportedAccountType(t *testing.T) {
 	body, contentType := buildOpenAIAudioTranscriptionMultipart(t, map[string]string{
 		"model": "client-transcribe",
@@ -353,4 +522,30 @@ func TestOpenAIGatewayServiceParseTranscribeAlias_InvalidBase64(t *testing.T) {
 	parsed, err := (&OpenAIGatewayService{}).ParseOpenAIAudioTranscriptionsRequest(c, body)
 	require.Nil(t, parsed)
 	require.ErrorContains(t, err, "invalid base64 multipart body")
+}
+
+func newOpenAIAudioTranscriptionResponse(status int, body string) *http.Response {
+	return &http.Response{
+		StatusCode: status,
+		Header: http.Header{
+			"Content-Type": []string{"application/json"},
+			"x-request-id": []string{"rid_audio"},
+		},
+		Body: io.NopCloser(strings.NewReader(body)),
+	}
+}
+
+func openAIAudioTranscriptionAPIKeyAccount(id int64) *Account {
+	return &Account{
+		ID:          id,
+		Name:        "api-key",
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeAPIKey,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"api_key": "sk-test",
+		},
+		Status:      StatusActive,
+		Schedulable: true,
+	}
 }
