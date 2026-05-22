@@ -435,10 +435,14 @@ type UsageLog struct {
 	GroupID        *int64 `json:"group_id"`
 	SubscriptionID *int64 `json:"subscription_id"`
 
-	InputTokens         int `json:"input_tokens"`
-	OutputTokens        int `json:"output_tokens"`
-	CacheCreationTokens int `json:"cache_creation_tokens"`
-	CacheReadTokens     int `json:"cache_read_tokens"`
+	InputTokens              int `json:"input_tokens"`
+	OutputTokens             int `json:"output_tokens"`
+	CacheCreationTokens      int `json:"cache_creation_tokens"`
+	CacheReadTokens          int `json:"cache_read_tokens"`
+	AudioInputTokens         int `json:"audio_input_tokens"`
+	AudioOutputTokens        int `json:"audio_output_tokens"`
+	AudioCacheCreationTokens int `json:"audio_cache_creation_tokens"`
+	AudioCacheReadTokens     int `json:"audio_cache_read_tokens"`
 
 	CacheCreation5mTokens int `json:"cache_creation_5m_tokens"`
 	CacheCreation1hTokens int `json:"cache_creation_1h_tokens"`

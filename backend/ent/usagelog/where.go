@@ -140,6 +140,26 @@ func CacheReadTokens(v int) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldCacheReadTokens, v))
 }
 
+// AudioInputTokens applies equality check predicate on the "audio_input_tokens" field. It's identical to AudioInputTokensEQ.
+func AudioInputTokens(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldAudioInputTokens, v))
+}
+
+// AudioOutputTokens applies equality check predicate on the "audio_output_tokens" field. It's identical to AudioOutputTokensEQ.
+func AudioOutputTokens(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldAudioOutputTokens, v))
+}
+
+// AudioCacheCreationTokens applies equality check predicate on the "audio_cache_creation_tokens" field. It's identical to AudioCacheCreationTokensEQ.
+func AudioCacheCreationTokens(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldAudioCacheCreationTokens, v))
+}
+
+// AudioCacheReadTokens applies equality check predicate on the "audio_cache_read_tokens" field. It's identical to AudioCacheReadTokensEQ.
+func AudioCacheReadTokens(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldAudioCacheReadTokens, v))
+}
+
 // CacheCreation5mTokens applies equality check predicate on the "cache_creation_5m_tokens" field. It's identical to CacheCreation5mTokensEQ.
 func CacheCreation5mTokens(v int) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldCacheCreation5mTokens, v))
@@ -1088,6 +1108,166 @@ func CacheReadTokensLT(v int) predicate.UsageLog {
 // CacheReadTokensLTE applies the LTE predicate on the "cache_read_tokens" field.
 func CacheReadTokensLTE(v int) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldLTE(FieldCacheReadTokens, v))
+}
+
+// AudioInputTokensEQ applies the EQ predicate on the "audio_input_tokens" field.
+func AudioInputTokensEQ(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldAudioInputTokens, v))
+}
+
+// AudioInputTokensNEQ applies the NEQ predicate on the "audio_input_tokens" field.
+func AudioInputTokensNEQ(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldAudioInputTokens, v))
+}
+
+// AudioInputTokensIn applies the In predicate on the "audio_input_tokens" field.
+func AudioInputTokensIn(vs ...int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldAudioInputTokens, vs...))
+}
+
+// AudioInputTokensNotIn applies the NotIn predicate on the "audio_input_tokens" field.
+func AudioInputTokensNotIn(vs ...int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldAudioInputTokens, vs...))
+}
+
+// AudioInputTokensGT applies the GT predicate on the "audio_input_tokens" field.
+func AudioInputTokensGT(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldAudioInputTokens, v))
+}
+
+// AudioInputTokensGTE applies the GTE predicate on the "audio_input_tokens" field.
+func AudioInputTokensGTE(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldAudioInputTokens, v))
+}
+
+// AudioInputTokensLT applies the LT predicate on the "audio_input_tokens" field.
+func AudioInputTokensLT(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldAudioInputTokens, v))
+}
+
+// AudioInputTokensLTE applies the LTE predicate on the "audio_input_tokens" field.
+func AudioInputTokensLTE(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldAudioInputTokens, v))
+}
+
+// AudioOutputTokensEQ applies the EQ predicate on the "audio_output_tokens" field.
+func AudioOutputTokensEQ(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldAudioOutputTokens, v))
+}
+
+// AudioOutputTokensNEQ applies the NEQ predicate on the "audio_output_tokens" field.
+func AudioOutputTokensNEQ(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldAudioOutputTokens, v))
+}
+
+// AudioOutputTokensIn applies the In predicate on the "audio_output_tokens" field.
+func AudioOutputTokensIn(vs ...int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldAudioOutputTokens, vs...))
+}
+
+// AudioOutputTokensNotIn applies the NotIn predicate on the "audio_output_tokens" field.
+func AudioOutputTokensNotIn(vs ...int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldAudioOutputTokens, vs...))
+}
+
+// AudioOutputTokensGT applies the GT predicate on the "audio_output_tokens" field.
+func AudioOutputTokensGT(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldAudioOutputTokens, v))
+}
+
+// AudioOutputTokensGTE applies the GTE predicate on the "audio_output_tokens" field.
+func AudioOutputTokensGTE(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldAudioOutputTokens, v))
+}
+
+// AudioOutputTokensLT applies the LT predicate on the "audio_output_tokens" field.
+func AudioOutputTokensLT(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldAudioOutputTokens, v))
+}
+
+// AudioOutputTokensLTE applies the LTE predicate on the "audio_output_tokens" field.
+func AudioOutputTokensLTE(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldAudioOutputTokens, v))
+}
+
+// AudioCacheCreationTokensEQ applies the EQ predicate on the "audio_cache_creation_tokens" field.
+func AudioCacheCreationTokensEQ(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldAudioCacheCreationTokens, v))
+}
+
+// AudioCacheCreationTokensNEQ applies the NEQ predicate on the "audio_cache_creation_tokens" field.
+func AudioCacheCreationTokensNEQ(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldAudioCacheCreationTokens, v))
+}
+
+// AudioCacheCreationTokensIn applies the In predicate on the "audio_cache_creation_tokens" field.
+func AudioCacheCreationTokensIn(vs ...int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldAudioCacheCreationTokens, vs...))
+}
+
+// AudioCacheCreationTokensNotIn applies the NotIn predicate on the "audio_cache_creation_tokens" field.
+func AudioCacheCreationTokensNotIn(vs ...int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldAudioCacheCreationTokens, vs...))
+}
+
+// AudioCacheCreationTokensGT applies the GT predicate on the "audio_cache_creation_tokens" field.
+func AudioCacheCreationTokensGT(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldAudioCacheCreationTokens, v))
+}
+
+// AudioCacheCreationTokensGTE applies the GTE predicate on the "audio_cache_creation_tokens" field.
+func AudioCacheCreationTokensGTE(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldAudioCacheCreationTokens, v))
+}
+
+// AudioCacheCreationTokensLT applies the LT predicate on the "audio_cache_creation_tokens" field.
+func AudioCacheCreationTokensLT(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldAudioCacheCreationTokens, v))
+}
+
+// AudioCacheCreationTokensLTE applies the LTE predicate on the "audio_cache_creation_tokens" field.
+func AudioCacheCreationTokensLTE(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldAudioCacheCreationTokens, v))
+}
+
+// AudioCacheReadTokensEQ applies the EQ predicate on the "audio_cache_read_tokens" field.
+func AudioCacheReadTokensEQ(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldAudioCacheReadTokens, v))
+}
+
+// AudioCacheReadTokensNEQ applies the NEQ predicate on the "audio_cache_read_tokens" field.
+func AudioCacheReadTokensNEQ(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldAudioCacheReadTokens, v))
+}
+
+// AudioCacheReadTokensIn applies the In predicate on the "audio_cache_read_tokens" field.
+func AudioCacheReadTokensIn(vs ...int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldAudioCacheReadTokens, vs...))
+}
+
+// AudioCacheReadTokensNotIn applies the NotIn predicate on the "audio_cache_read_tokens" field.
+func AudioCacheReadTokensNotIn(vs ...int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldAudioCacheReadTokens, vs...))
+}
+
+// AudioCacheReadTokensGT applies the GT predicate on the "audio_cache_read_tokens" field.
+func AudioCacheReadTokensGT(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldAudioCacheReadTokens, v))
+}
+
+// AudioCacheReadTokensGTE applies the GTE predicate on the "audio_cache_read_tokens" field.
+func AudioCacheReadTokensGTE(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldAudioCacheReadTokens, v))
+}
+
+// AudioCacheReadTokensLT applies the LT predicate on the "audio_cache_read_tokens" field.
+func AudioCacheReadTokensLT(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldAudioCacheReadTokens, v))
+}
+
+// AudioCacheReadTokensLTE applies the LTE predicate on the "audio_cache_read_tokens" field.
+func AudioCacheReadTokensLTE(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldAudioCacheReadTokens, v))
 }
 
 // CacheCreation5mTokensEQ applies the EQ predicate on the "cache_creation_5m_tokens" field.

@@ -225,6 +225,62 @@ func (_c *UsageLogCreate) SetNillableCacheReadTokens(v *int) *UsageLogCreate {
 	return _c
 }
 
+// SetAudioInputTokens sets the "audio_input_tokens" field.
+func (_c *UsageLogCreate) SetAudioInputTokens(v int) *UsageLogCreate {
+	_c.mutation.SetAudioInputTokens(v)
+	return _c
+}
+
+// SetNillableAudioInputTokens sets the "audio_input_tokens" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableAudioInputTokens(v *int) *UsageLogCreate {
+	if v != nil {
+		_c.SetAudioInputTokens(*v)
+	}
+	return _c
+}
+
+// SetAudioOutputTokens sets the "audio_output_tokens" field.
+func (_c *UsageLogCreate) SetAudioOutputTokens(v int) *UsageLogCreate {
+	_c.mutation.SetAudioOutputTokens(v)
+	return _c
+}
+
+// SetNillableAudioOutputTokens sets the "audio_output_tokens" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableAudioOutputTokens(v *int) *UsageLogCreate {
+	if v != nil {
+		_c.SetAudioOutputTokens(*v)
+	}
+	return _c
+}
+
+// SetAudioCacheCreationTokens sets the "audio_cache_creation_tokens" field.
+func (_c *UsageLogCreate) SetAudioCacheCreationTokens(v int) *UsageLogCreate {
+	_c.mutation.SetAudioCacheCreationTokens(v)
+	return _c
+}
+
+// SetNillableAudioCacheCreationTokens sets the "audio_cache_creation_tokens" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableAudioCacheCreationTokens(v *int) *UsageLogCreate {
+	if v != nil {
+		_c.SetAudioCacheCreationTokens(*v)
+	}
+	return _c
+}
+
+// SetAudioCacheReadTokens sets the "audio_cache_read_tokens" field.
+func (_c *UsageLogCreate) SetAudioCacheReadTokens(v int) *UsageLogCreate {
+	_c.mutation.SetAudioCacheReadTokens(v)
+	return _c
+}
+
+// SetNillableAudioCacheReadTokens sets the "audio_cache_read_tokens" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableAudioCacheReadTokens(v *int) *UsageLogCreate {
+	if v != nil {
+		_c.SetAudioCacheReadTokens(*v)
+	}
+	return _c
+}
+
 // SetCacheCreation5mTokens sets the "cache_creation_5m_tokens" field.
 func (_c *UsageLogCreate) SetCacheCreation5mTokens(v int) *UsageLogCreate {
 	_c.mutation.SetCacheCreation5mTokens(v)
@@ -629,6 +685,22 @@ func (_c *UsageLogCreate) defaults() {
 		v := usagelog.DefaultCacheReadTokens
 		_c.mutation.SetCacheReadTokens(v)
 	}
+	if _, ok := _c.mutation.AudioInputTokens(); !ok {
+		v := usagelog.DefaultAudioInputTokens
+		_c.mutation.SetAudioInputTokens(v)
+	}
+	if _, ok := _c.mutation.AudioOutputTokens(); !ok {
+		v := usagelog.DefaultAudioOutputTokens
+		_c.mutation.SetAudioOutputTokens(v)
+	}
+	if _, ok := _c.mutation.AudioCacheCreationTokens(); !ok {
+		v := usagelog.DefaultAudioCacheCreationTokens
+		_c.mutation.SetAudioCacheCreationTokens(v)
+	}
+	if _, ok := _c.mutation.AudioCacheReadTokens(); !ok {
+		v := usagelog.DefaultAudioCacheReadTokens
+		_c.mutation.SetAudioCacheReadTokens(v)
+	}
 	if _, ok := _c.mutation.CacheCreation5mTokens(); !ok {
 		v := usagelog.DefaultCacheCreation5mTokens
 		_c.mutation.SetCacheCreation5mTokens(v)
@@ -750,6 +822,18 @@ func (_c *UsageLogCreate) check() error {
 	}
 	if _, ok := _c.mutation.CacheReadTokens(); !ok {
 		return &ValidationError{Name: "cache_read_tokens", err: errors.New(`ent: missing required field "UsageLog.cache_read_tokens"`)}
+	}
+	if _, ok := _c.mutation.AudioInputTokens(); !ok {
+		return &ValidationError{Name: "audio_input_tokens", err: errors.New(`ent: missing required field "UsageLog.audio_input_tokens"`)}
+	}
+	if _, ok := _c.mutation.AudioOutputTokens(); !ok {
+		return &ValidationError{Name: "audio_output_tokens", err: errors.New(`ent: missing required field "UsageLog.audio_output_tokens"`)}
+	}
+	if _, ok := _c.mutation.AudioCacheCreationTokens(); !ok {
+		return &ValidationError{Name: "audio_cache_creation_tokens", err: errors.New(`ent: missing required field "UsageLog.audio_cache_creation_tokens"`)}
+	}
+	if _, ok := _c.mutation.AudioCacheReadTokens(); !ok {
+		return &ValidationError{Name: "audio_cache_read_tokens", err: errors.New(`ent: missing required field "UsageLog.audio_cache_read_tokens"`)}
 	}
 	if _, ok := _c.mutation.CacheCreation5mTokens(); !ok {
 		return &ValidationError{Name: "cache_creation_5m_tokens", err: errors.New(`ent: missing required field "UsageLog.cache_creation_5m_tokens"`)}
@@ -906,6 +990,22 @@ func (_c *UsageLogCreate) createSpec() (*UsageLog, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.CacheReadTokens(); ok {
 		_spec.SetField(usagelog.FieldCacheReadTokens, field.TypeInt, value)
 		_node.CacheReadTokens = value
+	}
+	if value, ok := _c.mutation.AudioInputTokens(); ok {
+		_spec.SetField(usagelog.FieldAudioInputTokens, field.TypeInt, value)
+		_node.AudioInputTokens = value
+	}
+	if value, ok := _c.mutation.AudioOutputTokens(); ok {
+		_spec.SetField(usagelog.FieldAudioOutputTokens, field.TypeInt, value)
+		_node.AudioOutputTokens = value
+	}
+	if value, ok := _c.mutation.AudioCacheCreationTokens(); ok {
+		_spec.SetField(usagelog.FieldAudioCacheCreationTokens, field.TypeInt, value)
+		_node.AudioCacheCreationTokens = value
+	}
+	if value, ok := _c.mutation.AudioCacheReadTokens(); ok {
+		_spec.SetField(usagelog.FieldAudioCacheReadTokens, field.TypeInt, value)
+		_node.AudioCacheReadTokens = value
 	}
 	if value, ok := _c.mutation.CacheCreation5mTokens(); ok {
 		_spec.SetField(usagelog.FieldCacheCreation5mTokens, field.TypeInt, value)
@@ -1419,6 +1519,78 @@ func (u *UsageLogUpsert) UpdateCacheReadTokens() *UsageLogUpsert {
 // AddCacheReadTokens adds v to the "cache_read_tokens" field.
 func (u *UsageLogUpsert) AddCacheReadTokens(v int) *UsageLogUpsert {
 	u.Add(usagelog.FieldCacheReadTokens, v)
+	return u
+}
+
+// SetAudioInputTokens sets the "audio_input_tokens" field.
+func (u *UsageLogUpsert) SetAudioInputTokens(v int) *UsageLogUpsert {
+	u.Set(usagelog.FieldAudioInputTokens, v)
+	return u
+}
+
+// UpdateAudioInputTokens sets the "audio_input_tokens" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateAudioInputTokens() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldAudioInputTokens)
+	return u
+}
+
+// AddAudioInputTokens adds v to the "audio_input_tokens" field.
+func (u *UsageLogUpsert) AddAudioInputTokens(v int) *UsageLogUpsert {
+	u.Add(usagelog.FieldAudioInputTokens, v)
+	return u
+}
+
+// SetAudioOutputTokens sets the "audio_output_tokens" field.
+func (u *UsageLogUpsert) SetAudioOutputTokens(v int) *UsageLogUpsert {
+	u.Set(usagelog.FieldAudioOutputTokens, v)
+	return u
+}
+
+// UpdateAudioOutputTokens sets the "audio_output_tokens" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateAudioOutputTokens() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldAudioOutputTokens)
+	return u
+}
+
+// AddAudioOutputTokens adds v to the "audio_output_tokens" field.
+func (u *UsageLogUpsert) AddAudioOutputTokens(v int) *UsageLogUpsert {
+	u.Add(usagelog.FieldAudioOutputTokens, v)
+	return u
+}
+
+// SetAudioCacheCreationTokens sets the "audio_cache_creation_tokens" field.
+func (u *UsageLogUpsert) SetAudioCacheCreationTokens(v int) *UsageLogUpsert {
+	u.Set(usagelog.FieldAudioCacheCreationTokens, v)
+	return u
+}
+
+// UpdateAudioCacheCreationTokens sets the "audio_cache_creation_tokens" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateAudioCacheCreationTokens() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldAudioCacheCreationTokens)
+	return u
+}
+
+// AddAudioCacheCreationTokens adds v to the "audio_cache_creation_tokens" field.
+func (u *UsageLogUpsert) AddAudioCacheCreationTokens(v int) *UsageLogUpsert {
+	u.Add(usagelog.FieldAudioCacheCreationTokens, v)
+	return u
+}
+
+// SetAudioCacheReadTokens sets the "audio_cache_read_tokens" field.
+func (u *UsageLogUpsert) SetAudioCacheReadTokens(v int) *UsageLogUpsert {
+	u.Set(usagelog.FieldAudioCacheReadTokens, v)
+	return u
+}
+
+// UpdateAudioCacheReadTokens sets the "audio_cache_read_tokens" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateAudioCacheReadTokens() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldAudioCacheReadTokens)
+	return u
+}
+
+// AddAudioCacheReadTokens adds v to the "audio_cache_read_tokens" field.
+func (u *UsageLogUpsert) AddAudioCacheReadTokens(v int) *UsageLogUpsert {
+	u.Add(usagelog.FieldAudioCacheReadTokens, v)
 	return u
 }
 
@@ -2213,6 +2385,90 @@ func (u *UsageLogUpsertOne) AddCacheReadTokens(v int) *UsageLogUpsertOne {
 func (u *UsageLogUpsertOne) UpdateCacheReadTokens() *UsageLogUpsertOne {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.UpdateCacheReadTokens()
+	})
+}
+
+// SetAudioInputTokens sets the "audio_input_tokens" field.
+func (u *UsageLogUpsertOne) SetAudioInputTokens(v int) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetAudioInputTokens(v)
+	})
+}
+
+// AddAudioInputTokens adds v to the "audio_input_tokens" field.
+func (u *UsageLogUpsertOne) AddAudioInputTokens(v int) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddAudioInputTokens(v)
+	})
+}
+
+// UpdateAudioInputTokens sets the "audio_input_tokens" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateAudioInputTokens() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateAudioInputTokens()
+	})
+}
+
+// SetAudioOutputTokens sets the "audio_output_tokens" field.
+func (u *UsageLogUpsertOne) SetAudioOutputTokens(v int) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetAudioOutputTokens(v)
+	})
+}
+
+// AddAudioOutputTokens adds v to the "audio_output_tokens" field.
+func (u *UsageLogUpsertOne) AddAudioOutputTokens(v int) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddAudioOutputTokens(v)
+	})
+}
+
+// UpdateAudioOutputTokens sets the "audio_output_tokens" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateAudioOutputTokens() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateAudioOutputTokens()
+	})
+}
+
+// SetAudioCacheCreationTokens sets the "audio_cache_creation_tokens" field.
+func (u *UsageLogUpsertOne) SetAudioCacheCreationTokens(v int) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetAudioCacheCreationTokens(v)
+	})
+}
+
+// AddAudioCacheCreationTokens adds v to the "audio_cache_creation_tokens" field.
+func (u *UsageLogUpsertOne) AddAudioCacheCreationTokens(v int) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddAudioCacheCreationTokens(v)
+	})
+}
+
+// UpdateAudioCacheCreationTokens sets the "audio_cache_creation_tokens" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateAudioCacheCreationTokens() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateAudioCacheCreationTokens()
+	})
+}
+
+// SetAudioCacheReadTokens sets the "audio_cache_read_tokens" field.
+func (u *UsageLogUpsertOne) SetAudioCacheReadTokens(v int) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetAudioCacheReadTokens(v)
+	})
+}
+
+// AddAudioCacheReadTokens adds v to the "audio_cache_read_tokens" field.
+func (u *UsageLogUpsertOne) AddAudioCacheReadTokens(v int) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddAudioCacheReadTokens(v)
+	})
+}
+
+// UpdateAudioCacheReadTokens sets the "audio_cache_read_tokens" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateAudioCacheReadTokens() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateAudioCacheReadTokens()
 	})
 }
 
@@ -3243,6 +3499,90 @@ func (u *UsageLogUpsertBulk) AddCacheReadTokens(v int) *UsageLogUpsertBulk {
 func (u *UsageLogUpsertBulk) UpdateCacheReadTokens() *UsageLogUpsertBulk {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.UpdateCacheReadTokens()
+	})
+}
+
+// SetAudioInputTokens sets the "audio_input_tokens" field.
+func (u *UsageLogUpsertBulk) SetAudioInputTokens(v int) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetAudioInputTokens(v)
+	})
+}
+
+// AddAudioInputTokens adds v to the "audio_input_tokens" field.
+func (u *UsageLogUpsertBulk) AddAudioInputTokens(v int) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddAudioInputTokens(v)
+	})
+}
+
+// UpdateAudioInputTokens sets the "audio_input_tokens" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateAudioInputTokens() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateAudioInputTokens()
+	})
+}
+
+// SetAudioOutputTokens sets the "audio_output_tokens" field.
+func (u *UsageLogUpsertBulk) SetAudioOutputTokens(v int) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetAudioOutputTokens(v)
+	})
+}
+
+// AddAudioOutputTokens adds v to the "audio_output_tokens" field.
+func (u *UsageLogUpsertBulk) AddAudioOutputTokens(v int) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddAudioOutputTokens(v)
+	})
+}
+
+// UpdateAudioOutputTokens sets the "audio_output_tokens" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateAudioOutputTokens() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateAudioOutputTokens()
+	})
+}
+
+// SetAudioCacheCreationTokens sets the "audio_cache_creation_tokens" field.
+func (u *UsageLogUpsertBulk) SetAudioCacheCreationTokens(v int) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetAudioCacheCreationTokens(v)
+	})
+}
+
+// AddAudioCacheCreationTokens adds v to the "audio_cache_creation_tokens" field.
+func (u *UsageLogUpsertBulk) AddAudioCacheCreationTokens(v int) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddAudioCacheCreationTokens(v)
+	})
+}
+
+// UpdateAudioCacheCreationTokens sets the "audio_cache_creation_tokens" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateAudioCacheCreationTokens() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateAudioCacheCreationTokens()
+	})
+}
+
+// SetAudioCacheReadTokens sets the "audio_cache_read_tokens" field.
+func (u *UsageLogUpsertBulk) SetAudioCacheReadTokens(v int) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetAudioCacheReadTokens(v)
+	})
+}
+
+// AddAudioCacheReadTokens adds v to the "audio_cache_read_tokens" field.
+func (u *UsageLogUpsertBulk) AddAudioCacheReadTokens(v int) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddAudioCacheReadTokens(v)
+	})
+}
+
+// UpdateAudioCacheReadTokens sets the "audio_cache_read_tokens" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateAudioCacheReadTokens() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateAudioCacheReadTokens()
 	})
 }
 

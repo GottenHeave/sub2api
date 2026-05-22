@@ -28,6 +28,29 @@ func TestUsageLogFromService_IncludesOpenAIWSMode(t *testing.T) {
 	require.False(t, UsageLogFromServiceAdmin(httpLog).OpenAIWSMode)
 }
 
+func TestUsageLogFromService_IncludesAudioUsageFields(t *testing.T) {
+	t.Parallel()
+
+	log := &service.UsageLog{
+		RequestID:                "req_audio_usage",
+		Model:                    "gpt-4o-audio-preview",
+		AudioInputTokens:         11,
+		AudioOutputTokens:        12,
+		AudioCacheCreationTokens: 13,
+		AudioCacheReadTokens:     14,
+	}
+
+	userDTO := UsageLogFromService(log)
+	adminDTO := UsageLogFromServiceAdmin(log)
+
+	for _, got := range []*UsageLog{userDTO, &adminDTO.UsageLog} {
+		require.Equal(t, 11, got.AudioInputTokens)
+		require.Equal(t, 12, got.AudioOutputTokens)
+		require.Equal(t, 13, got.AudioCacheCreationTokens)
+		require.Equal(t, 14, got.AudioCacheReadTokens)
+	}
+}
+
 func TestUsageLogFromService_PrefersRequestTypeForLegacyFields(t *testing.T) {
 	t.Parallel()
 

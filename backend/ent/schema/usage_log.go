@@ -73,6 +73,14 @@ func (UsageLog) Fields() []ent.Field {
 			Default(0),
 		field.Int("cache_read_tokens").
 			Default(0),
+		field.Int("audio_input_tokens").
+			Default(0),
+		field.Int("audio_output_tokens").
+			Default(0),
+		field.Int("audio_cache_creation_tokens").
+			Default(0),
+		field.Int("audio_cache_read_tokens").
+			Default(0),
 		field.Int("cache_creation_5m_tokens").
 			Default(0),
 		field.Int("cache_creation_1h_tokens").
