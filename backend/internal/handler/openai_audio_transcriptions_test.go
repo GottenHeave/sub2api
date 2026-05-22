@@ -53,10 +53,14 @@ func (r *audioTranscriptionHandlerUsageLogRepo) Create(_ context.Context, log *s
 type audioTranscriptionHandlerUpstream struct {
 	statuses   []int
 	accountIDs []int64
+	urls       []string
 }
 
 func (u *audioTranscriptionHandlerUpstream) Do(req *http.Request, _ string, accountID int64, _ int) (*http.Response, error) {
 	u.accountIDs = append(u.accountIDs, accountID)
+	if req != nil && req.URL != nil {
+		u.urls = append(u.urls, req.URL.String())
+	}
 	status := http.StatusOK
 	if idx := len(u.accountIDs) - 1; idx < len(u.statuses) {
 		status = u.statuses[idx]
@@ -78,6 +82,21 @@ func (u *audioTranscriptionHandlerUpstream) Do(req *http.Request, _ string, acco
 
 func (u *audioTranscriptionHandlerUpstream) DoWithTLS(req *http.Request, proxyURL string, accountID int64, accountConcurrency int, _ *tlsfingerprint.Profile) (*http.Response, error) {
 	return u.Do(req, proxyURL, accountID, accountConcurrency)
+}
+
+func TestOpenAIGatewayHandlerAudioTranscriptions_DispatchesOAuthAccount(t *testing.T) {
+	upstream := &audioTranscriptionHandlerUpstream{statuses: []int{http.StatusOK}}
+	handler := newAudioTranscriptionHandlerForTest(t, upstream, []service.Account{
+		newAudioTranscriptionHandlerOAuthAccount(9),
+	})
+	c, rec := newAudioTranscriptionHandlerContext(t, "/transcribe")
+
+	handler.AudioTranscriptions(c)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, []int64{9}, upstream.accountIDs)
+	require.Equal(t, []string{"https://chatgpt.com/backend-api/transcribe"}, upstream.urls)
+	require.JSONEq(t, `{"text":"ok"}`, rec.Body.String())
 }
 
 func TestOpenAIGatewayHandlerAudioTranscriptions_SameAccountRetry(t *testing.T) {
@@ -270,5 +289,21 @@ func newAudioTranscriptionHandlerAccount(id int64) service.Account {
 		Concurrency: 0,
 		Priority:    int(id),
 		Credentials: map[string]any{"api_key": "sk-test"},
+	}
+}
+
+func newAudioTranscriptionHandlerOAuthAccount(id int64) service.Account {
+	return service.Account{
+		ID:          id,
+		Name:        "openai-oauth-audio",
+		Platform:    service.PlatformOpenAI,
+		Type:        service.AccountTypeOAuth,
+		Status:      service.StatusActive,
+		Schedulable: true,
+		Concurrency: 0,
+		Priority:    int(id),
+		Credentials: map[string]any{
+			"access_token": "oauth-test-token",
+		},
 	}
 }
