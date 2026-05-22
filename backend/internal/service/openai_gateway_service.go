@@ -209,6 +209,10 @@ type OpenAIUsage struct {
 	CacheCreationInputTokens int `json:"cache_creation_input_tokens,omitempty"`
 	CacheReadInputTokens     int `json:"cache_read_input_tokens,omitempty"`
 	ImageOutputTokens        int `json:"image_output_tokens,omitempty"`
+	InputAudioTokens         int `json:"input_audio_tokens,omitempty"`
+	OutputAudioTokens        int `json:"output_audio_tokens,omitempty"`
+	CacheCreationAudioTokens int `json:"cache_creation_audio_tokens,omitempty"`
+	CacheReadAudioTokens     int `json:"cache_read_audio_tokens,omitempty"`
 }
 
 // OpenAIForwardResult represents the result of forwarding
@@ -4821,19 +4825,58 @@ func openAIUsageFromGJSON(value gjson.Result) (OpenAIUsage, bool) {
 	}
 	cacheReadTokens := value.Get("input_tokens_details.cached_tokens").Int()
 	if cacheReadTokens == 0 {
+		cacheReadTokens = value.Get("input_token_details.cached_tokens").Int()
+	}
+	if cacheReadTokens == 0 {
 		cacheReadTokens = value.Get("prompt_tokens_details.cached_tokens").Int()
 	}
 	imageOutputTokens := value.Get("output_tokens_details.image_tokens").Int()
 	if imageOutputTokens == 0 {
 		imageOutputTokens = value.Get("completion_tokens_details.image_tokens").Int()
 	}
+	inputAudioTokens := firstGJSONInt(value,
+		"input_token_details.audio_tokens",
+		"input_tokens_details.audio_tokens",
+		"prompt_tokens_details.audio_tokens",
+	)
+	outputAudioTokens := firstGJSONInt(value,
+		"output_token_details.audio_tokens",
+		"output_tokens_details.audio_tokens",
+		"completion_tokens_details.audio_tokens",
+	)
+	cacheReadAudioTokens := firstGJSONInt(value,
+		"input_token_details.cached_tokens_details.audio_tokens",
+		"input_tokens_details.cached_tokens_details.audio_tokens",
+		"prompt_tokens_details.cached_tokens_details.audio_tokens",
+	)
+	cacheCreationAudioTokens := firstGJSONInt(value,
+		"input_token_details.cache_creation.audio_tokens",
+		"input_tokens_details.cache_creation.audio_tokens",
+		"prompt_tokens_details.cache_creation.audio_tokens",
+		"cache_creation_input_token_details.audio_tokens",
+		"cache_creation_input_tokens_details.audio_tokens",
+	)
 	return OpenAIUsage{
 		InputTokens:              int(inputTokens),
 		OutputTokens:             int(outputTokens),
 		CacheCreationInputTokens: int(value.Get("cache_creation_input_tokens").Int()),
 		CacheReadInputTokens:     int(cacheReadTokens),
 		ImageOutputTokens:        int(imageOutputTokens),
+		InputAudioTokens:         int(inputAudioTokens),
+		OutputAudioTokens:        int(outputAudioTokens),
+		CacheCreationAudioTokens: int(cacheCreationAudioTokens),
+		CacheReadAudioTokens:     int(cacheReadAudioTokens),
 	}, true
+}
+
+func firstGJSONInt(value gjson.Result, paths ...string) int64 {
+	for _, path := range paths {
+		result := value.Get(path)
+		if result.Exists() && result.Type == gjson.Number {
+			return result.Int()
+		}
+	}
+	return 0
 }
 
 func (s *OpenAIGatewayService) handleNonStreamingResponse(ctx context.Context, resp *http.Response, c *gin.Context, account *Account, originalModel, mappedModel string) (*openaiNonStreamingResult, error) {
@@ -5396,14 +5439,22 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	if actualInputTokens < 0 {
 		actualInputTokens = 0
 	}
+	actualAudioInputTokens := result.Usage.InputAudioTokens - result.Usage.CacheReadAudioTokens
+	if actualAudioInputTokens < 0 {
+		actualAudioInputTokens = 0
+	}
 
 	// Calculate cost
 	tokens := UsageTokens{
-		InputTokens:         actualInputTokens,
-		OutputTokens:        result.Usage.OutputTokens,
-		CacheCreationTokens: result.Usage.CacheCreationInputTokens,
-		CacheReadTokens:     result.Usage.CacheReadInputTokens,
-		ImageOutputTokens:   result.Usage.ImageOutputTokens,
+		InputTokens:              actualInputTokens,
+		OutputTokens:             result.Usage.OutputTokens,
+		CacheCreationTokens:      result.Usage.CacheCreationInputTokens,
+		CacheReadTokens:          result.Usage.CacheReadInputTokens,
+		ImageOutputTokens:        result.Usage.ImageOutputTokens,
+		AudioInputTokens:         actualAudioInputTokens,
+		AudioOutputTokens:        result.Usage.OutputAudioTokens,
+		AudioCacheCreationTokens: result.Usage.CacheCreationAudioTokens,
+		AudioCacheReadTokens:     result.Usage.CacheReadAudioTokens,
 	}
 
 	// Get rate multiplier

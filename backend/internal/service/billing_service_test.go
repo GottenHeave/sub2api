@@ -55,6 +55,65 @@ func TestCalculateCost_WithCacheTokens(t *testing.T) {
 	require.InDelta(t, expectedTotal, cost.TotalCost, 1e-10)
 }
 
+func TestComputeTokenBreakdown_AudioTokensUseAudioPricesWithoutDoubleBilling(t *testing.T) {
+	svc := newTestBillingService()
+	pricing := &ModelPricing{
+		InputPricePerToken:              0.001,
+		OutputPricePerToken:             0.002,
+		CacheCreationPricePerToken:      0.003,
+		CacheReadPricePerToken:          0.004,
+		AudioInputPricePerToken:         0.010,
+		AudioOutputPricePerToken:        0.020,
+		AudioCacheCreationPricePerToken: 0.030,
+		AudioCacheReadPricePerToken:     0.040,
+	}
+	tokens := UsageTokens{
+		InputTokens:              100,
+		OutputTokens:             50,
+		CacheCreationTokens:      30,
+		CacheReadTokens:          20,
+		AudioInputTokens:         10,
+		AudioOutputTokens:        5,
+		AudioCacheCreationTokens: 3,
+		AudioCacheReadTokens:     2,
+	}
+
+	cost := svc.computeTokenBreakdown(pricing, tokens, 1, "", false)
+
+	require.InDelta(t, 90*0.001+10*0.010, cost.InputCost, 1e-12)
+	require.InDelta(t, 45*0.002+5*0.020, cost.OutputCost, 1e-12)
+	require.InDelta(t, 27*0.003+3*0.030, cost.CacheCreationCost, 1e-12)
+	require.InDelta(t, 18*0.004+2*0.040, cost.CacheReadCost, 1e-12)
+	require.InDelta(t, cost.InputCost+cost.OutputCost+cost.CacheCreationCost+cost.CacheReadCost, cost.TotalCost, 1e-12)
+}
+
+func TestComputeTokenBreakdown_AudioPricesFallbackToTextPrices(t *testing.T) {
+	svc := newTestBillingService()
+	pricing := &ModelPricing{
+		InputPricePerToken:         0.001,
+		OutputPricePerToken:        0.002,
+		CacheCreationPricePerToken: 0.003,
+		CacheReadPricePerToken:     0.004,
+	}
+	tokens := UsageTokens{
+		InputTokens:              10,
+		OutputTokens:             10,
+		CacheCreationTokens:      10,
+		CacheReadTokens:          10,
+		AudioInputTokens:         10,
+		AudioOutputTokens:        10,
+		AudioCacheCreationTokens: 10,
+		AudioCacheReadTokens:     10,
+	}
+
+	cost := svc.computeTokenBreakdown(pricing, tokens, 1, "", false)
+
+	require.InDelta(t, 10*0.001, cost.InputCost, 1e-12)
+	require.InDelta(t, 10*0.002, cost.OutputCost, 1e-12)
+	require.InDelta(t, 10*0.003, cost.CacheCreationCost, 1e-12)
+	require.InDelta(t, 10*0.004, cost.CacheReadCost, 1e-12)
+}
+
 func TestCalculateCost_RateMultiplier(t *testing.T) {
 	svc := newTestBillingService()
 
