@@ -43,20 +43,24 @@ type BillingCache interface {
 
 // ModelPricing 模型价格配置（per-token价格，与LiteLLM格式一致）
 type ModelPricing struct {
-	InputPricePerToken             float64 // 每token输入价格 (USD)
-	InputPricePerTokenPriority     float64 // priority service tier 下每token输入价格 (USD)
-	OutputPricePerToken            float64 // 每token输出价格 (USD)
-	OutputPricePerTokenPriority    float64 // priority service tier 下每token输出价格 (USD)
-	CacheCreationPricePerToken     float64 // 缓存创建每token价格 (USD)
-	CacheReadPricePerToken         float64 // 缓存读取每token价格 (USD)
-	CacheReadPricePerTokenPriority float64 // priority service tier 下缓存读取每token价格 (USD)
-	CacheCreation5mPrice           float64 // 5分钟缓存创建每token价格 (USD)
-	CacheCreation1hPrice           float64 // 1小时缓存创建每token价格 (USD)
-	SupportsCacheBreakdown         bool    // 是否支持详细的缓存分类
-	LongContextInputThreshold      int     // 超过阈值后按整次会话提升输入价格
-	LongContextInputMultiplier     float64 // 长上下文整次会话输入倍率
-	LongContextOutputMultiplier    float64 // 长上下文整次会话输出倍率
-	ImageOutputPricePerToken       float64 // 图片输出 token 价格 (USD)
+	InputPricePerToken              float64 // 每token输入价格 (USD)
+	InputPricePerTokenPriority      float64 // priority service tier 下每token输入价格 (USD)
+	OutputPricePerToken             float64 // 每token输出价格 (USD)
+	OutputPricePerTokenPriority     float64 // priority service tier 下每token输出价格 (USD)
+	CacheCreationPricePerToken      float64 // 缓存创建每token价格 (USD)
+	CacheReadPricePerToken          float64 // 缓存读取每token价格 (USD)
+	CacheReadPricePerTokenPriority  float64 // priority service tier 下缓存读取每token价格 (USD)
+	CacheCreation5mPrice            float64 // 5分钟缓存创建每token价格 (USD)
+	CacheCreation1hPrice            float64 // 1小时缓存创建每token价格 (USD)
+	AudioInputPricePerToken         float64 // 音频输入 token 价格 (USD)
+	AudioOutputPricePerToken        float64 // 音频输出 token 价格 (USD)
+	AudioCacheCreationPricePerToken float64 // 音频缓存创建 token 价格 (USD)
+	AudioCacheReadPricePerToken     float64 // 音频缓存读取 token 价格 (USD)
+	SupportsCacheBreakdown          bool    // 是否支持详细的缓存分类
+	LongContextInputThreshold       int     // 超过阈值后按整次会话提升输入价格
+	LongContextInputMultiplier      float64 // 长上下文整次会话输入倍率
+	LongContextOutputMultiplier     float64 // 长上下文整次会话输出倍率
+	ImageOutputPricePerToken        float64 // 图片输出 token 价格 (USD)
 }
 
 const (
@@ -89,13 +93,17 @@ func serviceTierCostMultiplier(serviceTier string) float64 {
 
 // UsageTokens 使用的token数量
 type UsageTokens struct {
-	InputTokens           int
-	OutputTokens          int
-	CacheCreationTokens   int
-	CacheReadTokens       int
-	CacheCreation5mTokens int
-	CacheCreation1hTokens int
-	ImageOutputTokens     int
+	InputTokens              int
+	OutputTokens             int
+	CacheCreationTokens      int
+	CacheReadTokens          int
+	CacheCreation5mTokens    int
+	CacheCreation1hTokens    int
+	ImageOutputTokens        int
+	AudioInputTokens         int
+	AudioOutputTokens        int
+	AudioCacheCreationTokens int
+	AudioCacheReadTokens     int
 }
 
 // CostBreakdown 费用明细
@@ -334,20 +342,24 @@ func (s *BillingService) GetModelPricing(model string) (*ModelPricing, error) {
 			price1h := litellmPricing.CacheCreationInputTokenCostAbove1hr
 			enableBreakdown := price1h > 0 && price1h > price5m
 			return s.applyModelSpecificPricingPolicy(model, &ModelPricing{
-				InputPricePerToken:             litellmPricing.InputCostPerToken,
-				InputPricePerTokenPriority:     litellmPricing.InputCostPerTokenPriority,
-				OutputPricePerToken:            litellmPricing.OutputCostPerToken,
-				OutputPricePerTokenPriority:    litellmPricing.OutputCostPerTokenPriority,
-				CacheCreationPricePerToken:     litellmPricing.CacheCreationInputTokenCost,
-				CacheReadPricePerToken:         litellmPricing.CacheReadInputTokenCost,
-				CacheReadPricePerTokenPriority: litellmPricing.CacheReadInputTokenCostPriority,
-				CacheCreation5mPrice:           price5m,
-				CacheCreation1hPrice:           price1h,
-				SupportsCacheBreakdown:         enableBreakdown,
-				LongContextInputThreshold:      litellmPricing.LongContextInputTokenThreshold,
-				LongContextInputMultiplier:     litellmPricing.LongContextInputCostMultiplier,
-				LongContextOutputMultiplier:    litellmPricing.LongContextOutputCostMultiplier,
-				ImageOutputPricePerToken:       litellmPricing.OutputCostPerImageToken,
+				InputPricePerToken:              litellmPricing.InputCostPerToken,
+				InputPricePerTokenPriority:      litellmPricing.InputCostPerTokenPriority,
+				OutputPricePerToken:             litellmPricing.OutputCostPerToken,
+				OutputPricePerTokenPriority:     litellmPricing.OutputCostPerTokenPriority,
+				CacheCreationPricePerToken:      litellmPricing.CacheCreationInputTokenCost,
+				CacheReadPricePerToken:          litellmPricing.CacheReadInputTokenCost,
+				CacheReadPricePerTokenPriority:  litellmPricing.CacheReadInputTokenCostPriority,
+				CacheCreation5mPrice:            price5m,
+				CacheCreation1hPrice:            price1h,
+				AudioInputPricePerToken:         litellmPricing.InputCostPerAudioToken,
+				AudioOutputPricePerToken:        litellmPricing.OutputCostPerAudioToken,
+				AudioCacheCreationPricePerToken: litellmPricing.CacheCreationInputAudioTokenCost,
+				AudioCacheReadPricePerToken:     litellmPricing.CacheReadInputAudioTokenCost,
+				SupportsCacheBreakdown:          enableBreakdown,
+				LongContextInputThreshold:       litellmPricing.LongContextInputTokenThreshold,
+				LongContextInputMultiplier:      litellmPricing.LongContextInputCostMultiplier,
+				LongContextOutputMultiplier:     litellmPricing.LongContextOutputCostMultiplier,
+				ImageOutputPricePerToken:        litellmPricing.OutputCostPerImageToken,
 			}), nil
 		}
 	}
@@ -504,14 +516,28 @@ func (s *BillingService) computeTokenBreakdown(
 	}
 
 	bd := &CostBreakdown{}
-	bd.InputCost = float64(tokens.InputTokens) * inputPrice
-
-	// 分离图片输出 token 与文本输出 token
-	textOutputTokens := tokens.OutputTokens - tokens.ImageOutputTokens
-	if textOutputTokens < 0 {
-		textOutputTokens = 0
+	textInputTokens := subtractDetailTokens(tokens.InputTokens, tokens.AudioInputTokens)
+	bd.InputCost = float64(textInputTokens) * inputPrice
+	if tokens.AudioInputTokens > 0 {
+		audioInputPrice := pricing.AudioInputPricePerToken
+		if audioInputPrice == 0 {
+			audioInputPrice = inputPrice
+		}
+		bd.InputCost += float64(tokens.AudioInputTokens) * audioInputPrice
 	}
+
+	// 分离图片和音频输出 token 与文本输出 token
+	textOutputTokens := tokens.OutputTokens
+	textOutputTokens = subtractDetailTokens(textOutputTokens, tokens.ImageOutputTokens)
+	textOutputTokens = subtractDetailTokens(textOutputTokens, tokens.AudioOutputTokens)
 	bd.OutputCost = float64(textOutputTokens) * outputPrice
+	if tokens.AudioOutputTokens > 0 {
+		audioOutputPrice := pricing.AudioOutputPricePerToken
+		if audioOutputPrice == 0 {
+			audioOutputPrice = outputPrice
+		}
+		bd.OutputCost += float64(tokens.AudioOutputTokens) * audioOutputPrice
+	}
 
 	// 图片输出 token 费用（独立费率）
 	if tokens.ImageOutputTokens > 0 {
@@ -524,8 +550,23 @@ func (s *BillingService) computeTokenBreakdown(
 
 	// 缓存创建费用
 	bd.CacheCreationCost = s.computeCacheCreationCost(pricing, tokens)
+	if tokens.AudioCacheCreationTokens > 0 {
+		audioCacheCreationPrice := pricing.AudioCacheCreationPricePerToken
+		if audioCacheCreationPrice == 0 {
+			audioCacheCreationPrice = pricing.CacheCreationPricePerToken
+		}
+		bd.CacheCreationCost += float64(tokens.AudioCacheCreationTokens) * audioCacheCreationPrice
+	}
 
-	bd.CacheReadCost = float64(tokens.CacheReadTokens) * cacheReadPrice
+	textCacheReadTokens := subtractDetailTokens(tokens.CacheReadTokens, tokens.AudioCacheReadTokens)
+	bd.CacheReadCost = float64(textCacheReadTokens) * cacheReadPrice
+	if tokens.AudioCacheReadTokens > 0 {
+		audioCacheReadPrice := pricing.AudioCacheReadPricePerToken
+		if audioCacheReadPrice == 0 {
+			audioCacheReadPrice = cacheReadPrice
+		}
+		bd.CacheReadCost += float64(tokens.AudioCacheReadTokens) * audioCacheReadPrice
+	}
 
 	if tierMultiplier != 1.0 {
 		bd.InputCost *= tierMultiplier
@@ -544,15 +585,46 @@ func (s *BillingService) computeTokenBreakdown(
 
 // computeCacheCreationCost 计算缓存创建费用（支持 5m/1h 分类或标准计费）。
 func (s *BillingService) computeCacheCreationCost(pricing *ModelPricing, tokens UsageTokens) float64 {
+	textCacheCreationTokens := subtractDetailTokens(tokens.CacheCreationTokens, tokens.AudioCacheCreationTokens)
 	if pricing.SupportsCacheBreakdown && (pricing.CacheCreation5mPrice > 0 || pricing.CacheCreation1hPrice > 0) {
-		if tokens.CacheCreation5mTokens == 0 && tokens.CacheCreation1hTokens == 0 && tokens.CacheCreationTokens > 0 {
+		if tokens.CacheCreation5mTokens == 0 && tokens.CacheCreation1hTokens == 0 && textCacheCreationTokens > 0 {
 			// API 未返回 ephemeral 明细，回退到全部按 5m 单价计费
-			return float64(tokens.CacheCreationTokens) * pricing.CacheCreation5mPrice
+			return float64(textCacheCreationTokens) * pricing.CacheCreation5mPrice
 		}
-		return float64(tokens.CacheCreation5mTokens)*pricing.CacheCreation5mPrice +
-			float64(tokens.CacheCreation1hTokens)*pricing.CacheCreation1hPrice
+		textCacheCreation5mTokens, textCacheCreation1hTokens := splitCacheCreationDetailTokens(tokens)
+		return float64(textCacheCreation5mTokens)*pricing.CacheCreation5mPrice +
+			float64(textCacheCreation1hTokens)*pricing.CacheCreation1hPrice
 	}
-	return float64(tokens.CacheCreationTokens) * pricing.CacheCreationPricePerToken
+	return float64(textCacheCreationTokens) * pricing.CacheCreationPricePerToken
+}
+
+func subtractDetailTokens(total, detail int) int {
+	if total <= detail {
+		return 0
+	}
+	return total - detail
+}
+
+func splitCacheCreationDetailTokens(tokens UsageTokens) (int, int) {
+	text5m := tokens.CacheCreation5mTokens
+	text1h := tokens.CacheCreation1hTokens
+	remainingAudio := tokens.AudioCacheCreationTokens
+	if remainingAudio <= 0 {
+		return text5m, text1h
+	}
+	if remainingAudio >= text5m {
+		remainingAudio -= text5m
+		text5m = 0
+	} else {
+		text5m -= remainingAudio
+		remainingAudio = 0
+	}
+	if remainingAudio >= text1h {
+		text1h = 0
+	} else {
+		text1h -= remainingAudio
+	}
+	return text5m, text1h
 }
 
 // calculatePerRequestCost 按次/图片计费
