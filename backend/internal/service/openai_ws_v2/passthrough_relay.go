@@ -25,6 +25,10 @@ type Usage struct {
 	OutputTokens             int
 	CacheCreationInputTokens int
 	CacheReadInputTokens     int
+	InputAudioTokens         int
+	OutputAudioTokens        int
+	CacheCreationAudioTokens int
+	CacheReadAudioTokens     int
 }
 
 type RelayResult struct {
@@ -686,14 +690,21 @@ func parseUsageAndAccumulate(
 		return Usage{}
 	}
 
-	inputResult := gjson.GetBytes(message, "response.usage.input_tokens")
-	outputResult := gjson.GetBytes(message, "response.usage.output_tokens")
-	cachedResult := gjson.GetBytes(message, "response.usage.input_tokens_details.cached_tokens")
+	inputResult := firstUsageResult(usageResult, "input_tokens", "prompt_tokens")
+	outputResult := firstUsageResult(usageResult, "output_tokens", "completion_tokens")
+	cacheCreationResult := firstUsageResult(usageResult, "cache_creation_input_tokens")
+	cachedResult := firstUsageResult(
+		usageResult,
+		"input_tokens_details.cached_tokens",
+		"input_token_details.cached_tokens",
+		"prompt_tokens_details.cached_tokens",
+	)
 
 	inputTokens, inputOK := parseUsageIntField(inputResult, true)
 	outputTokens, outputOK := parseUsageIntField(outputResult, true)
+	cacheCreationTokens, cacheCreationOK := parseUsageIntField(cacheCreationResult, false)
 	cachedTokens, cachedOK := parseUsageIntField(cachedResult, false)
-	if !inputOK || !outputOK || !cachedOK {
+	if !inputOK || !outputOK || !cacheCreationOK || !cachedOK {
 		recordUsageParseFailure()
 		if onParseFailure != nil {
 			onParseFailure(eventType, usageRaw)
@@ -702,15 +713,67 @@ func parseUsageAndAccumulate(
 		return Usage{}
 	}
 	parsedUsage := Usage{
-		InputTokens:          inputTokens,
-		OutputTokens:         outputTokens,
-		CacheReadInputTokens: cachedTokens,
+		InputTokens:              inputTokens,
+		OutputTokens:             outputTokens,
+		CacheCreationInputTokens: cacheCreationTokens,
+		CacheReadInputTokens:     cachedTokens,
+		InputAudioTokens: firstUsageInt(
+			usageResult,
+			"input_token_details.audio_tokens",
+			"input_tokens_details.audio_tokens",
+			"prompt_tokens_details.audio_tokens",
+		),
+		OutputAudioTokens: firstUsageInt(
+			usageResult,
+			"output_token_details.audio_tokens",
+			"output_tokens_details.audio_tokens",
+			"completion_tokens_details.audio_tokens",
+		),
+		CacheCreationAudioTokens: firstUsageInt(
+			usageResult,
+			"input_token_details.cache_creation.audio_tokens",
+			"input_tokens_details.cache_creation.audio_tokens",
+			"prompt_tokens_details.cache_creation.audio_tokens",
+			"cache_creation_input_token_details.audio_tokens",
+			"cache_creation_input_tokens_details.audio_tokens",
+		),
+		CacheReadAudioTokens: firstUsageInt(
+			usageResult,
+			"input_token_details.cached_tokens_details.audio_tokens",
+			"input_tokens_details.cached_tokens_details.audio_tokens",
+			"prompt_tokens_details.cached_tokens_details.audio_tokens",
+		),
 	}
 
 	state.usage.InputTokens += parsedUsage.InputTokens
 	state.usage.OutputTokens += parsedUsage.OutputTokens
+	state.usage.CacheCreationInputTokens += parsedUsage.CacheCreationInputTokens
 	state.usage.CacheReadInputTokens += parsedUsage.CacheReadInputTokens
+	state.usage.InputAudioTokens += parsedUsage.InputAudioTokens
+	state.usage.OutputAudioTokens += parsedUsage.OutputAudioTokens
+	state.usage.CacheCreationAudioTokens += parsedUsage.CacheCreationAudioTokens
+	state.usage.CacheReadAudioTokens += parsedUsage.CacheReadAudioTokens
 	return parsedUsage
+}
+
+func firstUsageResult(value gjson.Result, paths ...string) gjson.Result {
+	for _, path := range paths {
+		result := value.Get(path)
+		if result.Exists() {
+			return result
+		}
+	}
+	return gjson.Result{}
+}
+
+func firstUsageInt(value gjson.Result, paths ...string) int {
+	for _, path := range paths {
+		result := value.Get(path)
+		if result.Exists() && result.Type == gjson.Number {
+			return int(result.Int())
+		}
+	}
+	return 0
 }
 
 func parseUsageIntField(value gjson.Result, required bool) (int, bool) {
@@ -773,7 +836,7 @@ func isTerminalEvent(eventType string) bool {
 
 func shouldParseUsage(eventType string) bool {
 	switch eventType {
-	case "response.completed", "response.done", "response.failed":
+	case "response.completed", "response.done", "response.failed", "response.incomplete", "response.cancelled", "response.canceled":
 		return true
 	default:
 		return false

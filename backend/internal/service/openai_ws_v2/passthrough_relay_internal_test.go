@@ -296,13 +296,98 @@ func TestParseUsageAndEnrichCoverage(t *testing.T) {
 	require.Equal(t, 1, state.usage.OutputTokens)
 	require.Equal(t, 1, state.usage.CacheReadInputTokens)
 
+	parsedAudio := parseUsageAndAccumulate(
+		state,
+		[]byte(`{"type":"response.incomplete","response":{"usage":{"prompt_tokens":20,"completion_tokens":8,"cache_creation_input_tokens":3,"prompt_tokens_details":{"cached_tokens":6,"audio_tokens":5,"cached_tokens_details":{"audio_tokens":2},"cache_creation":{"audio_tokens":1}},"completion_tokens_details":{"audio_tokens":4}}}}`),
+		"response.incomplete",
+		nil,
+	)
+	require.Equal(t, 20, parsedAudio.InputTokens)
+	require.Equal(t, 8, parsedAudio.OutputTokens)
+	require.Equal(t, 3, parsedAudio.CacheCreationInputTokens)
+	require.Equal(t, 6, parsedAudio.CacheReadInputTokens)
+	require.Equal(t, 5, parsedAudio.InputAudioTokens)
+	require.Equal(t, 4, parsedAudio.OutputAudioTokens)
+	require.Equal(t, 1, parsedAudio.CacheCreationAudioTokens)
+	require.Equal(t, 2, parsedAudio.CacheReadAudioTokens)
+	require.Equal(t, 22, state.usage.InputTokens)
+	require.Equal(t, 9, state.usage.OutputTokens)
+	require.Equal(t, 3, state.usage.CacheCreationInputTokens)
+	require.Equal(t, 7, state.usage.CacheReadInputTokens)
+	require.Equal(t, 5, state.usage.InputAudioTokens)
+	require.Equal(t, 4, state.usage.OutputAudioTokens)
+	require.Equal(t, 1, state.usage.CacheCreationAudioTokens)
+	require.Equal(t, 2, state.usage.CacheReadAudioTokens)
+
 	result := &RelayResult{}
 	enrichResult(result, state, 5*time.Millisecond)
 	require.Equal(t, state.usage.InputTokens, result.Usage.InputTokens)
+	require.Equal(t, state.usage.InputAudioTokens, result.Usage.InputAudioTokens)
 	require.Equal(t, 5*time.Millisecond, result.Duration)
 	parseUsageAndAccumulate(state, []byte(`{"type":"response.in_progress","response":{"usage":{"input_tokens":9}}}`), "response.in_progress", nil)
-	require.Equal(t, 2, state.usage.InputTokens)
+	require.Equal(t, 22, state.usage.InputTokens)
 	enrichResult(nil, state, 0)
+}
+
+func TestParseUsageAndAccumulateAudioVariants(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name                         string
+		usage                        string
+		wantInputAudioTokens         int
+		wantOutputAudioTokens        int
+		wantCacheCreationAudioTokens int
+		wantCacheReadAudioTokens     int
+	}{
+		{
+			name:                         "singular input and output details",
+			usage:                        `{"input_tokens":10,"output_tokens":5,"input_token_details":{"audio_tokens":3,"cached_tokens_details":{"audio_tokens":1},"cache_creation":{"audio_tokens":2}},"output_token_details":{"audio_tokens":4}}`,
+			wantInputAudioTokens:         3,
+			wantOutputAudioTokens:        4,
+			wantCacheCreationAudioTokens: 2,
+			wantCacheReadAudioTokens:     1,
+		},
+		{
+			name:                         "plural input and output details",
+			usage:                        `{"input_tokens":10,"output_tokens":5,"input_tokens_details":{"audio_tokens":6,"cached_tokens_details":{"audio_tokens":2},"cache_creation":{"audio_tokens":3}},"output_tokens_details":{"audio_tokens":7}}`,
+			wantInputAudioTokens:         6,
+			wantOutputAudioTokens:        7,
+			wantCacheCreationAudioTokens: 3,
+			wantCacheReadAudioTokens:     2,
+		},
+		{
+			name:                         "prompt and completion details",
+			usage:                        `{"prompt_tokens":10,"completion_tokens":5,"prompt_tokens_details":{"audio_tokens":8,"cached_tokens_details":{"audio_tokens":3},"cache_creation":{"audio_tokens":4}},"completion_tokens_details":{"audio_tokens":9}}`,
+			wantInputAudioTokens:         8,
+			wantOutputAudioTokens:        9,
+			wantCacheCreationAudioTokens: 4,
+			wantCacheReadAudioTokens:     3,
+		},
+		{
+			name:                         "cache creation detail fallback",
+			usage:                        `{"input_tokens":10,"output_tokens":5,"cache_creation_input_tokens_details":{"audio_tokens":11}}`,
+			wantCacheCreationAudioTokens: 11,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			state := &relayState{}
+			usage := parseUsageAndAccumulate(
+				state,
+				[]byte(`{"type":"response.canceled","response":{"usage":`+tt.usage+`}}`),
+				"response.canceled",
+				nil,
+			)
+			require.Equal(t, tt.wantInputAudioTokens, usage.InputAudioTokens)
+			require.Equal(t, tt.wantOutputAudioTokens, usage.OutputAudioTokens)
+			require.Equal(t, tt.wantCacheCreationAudioTokens, usage.CacheCreationAudioTokens)
+			require.Equal(t, tt.wantCacheReadAudioTokens, usage.CacheReadAudioTokens)
+		})
+	}
 }
 
 func TestEmitTurnCompleteCoverage(t *testing.T) {
