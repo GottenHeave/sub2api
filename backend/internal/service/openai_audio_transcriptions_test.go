@@ -10,6 +10,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/textproto"
 	"strings"
 	"testing"
 
@@ -22,7 +23,10 @@ func buildOpenAIAudioTranscriptionMultipart(t *testing.T, fields map[string]stri
 	t.Helper()
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
-	part, err := writer.CreateFormFile("file", "sample.wav")
+	part, err := writer.CreatePart(textproto.MIMEHeader{
+		"Content-Disposition": []string{`form-data; name="file"; filename="sample.wav"`},
+		"Content-Type":        []string{"audio/wav"},
+	})
 	require.NoError(t, err)
 	_, err = part.Write(fileBytes)
 	require.NoError(t, err)
@@ -87,6 +91,8 @@ func TestOpenAIGatewayServiceParseAudioTranscriptions_StandardMultipartRequiresM
 	require.True(t, parsed.ExplicitModel)
 	require.Equal(t, "en", parsed.Language)
 	require.Equal(t, "sample.wav", parsed.FileName)
+	require.Equal(t, int64(len("fake-audio")), parsed.FileSizeBytes)
+	require.Equal(t, "audio/wav", parsed.FileContentType)
 
 	noModelBody, noModelContentType := buildOpenAIAudioTranscriptionMultipart(t, map[string]string{
 		"language": "en",
@@ -167,16 +173,22 @@ func TestOpenAIGatewayServiceForwardAudioTranscriptions_UsagePolicy(t *testing.T
 		expectedUsage OpenAIUsage
 	}{
 		{
-			name:         "standard endpoint no usage records explicit zero tokens",
+			name:         "standard endpoint no usage estimates input audio tokens",
 			path:         "/v1/audio/transcriptions",
 			fields:       map[string]string{"model": "gpt-4o-mini-transcribe"},
 			responseBody: `{"text":"hello"}`,
+			expectedUsage: OpenAIUsage{
+				InputAudioTokens: 50,
+			},
 		},
 		{
-			name:         "transcribe alias no usage records explicit zero tokens",
+			name:         "transcribe alias no usage estimates input audio tokens",
 			path:         "/transcribe",
 			fields:       map[string]string{"language": "en"},
 			responseBody: `{"text":"hello"}`,
+			expectedUsage: OpenAIUsage{
+				InputAudioTokens: 50,
+			},
 		},
 		{
 			name:         "standard endpoint top-level usage",
@@ -254,6 +266,40 @@ func TestOpenAIGatewayServiceForwardAudioTranscriptions_UsagePolicy(t *testing.T
 			require.NotNil(t, result)
 			require.Equal(t, http.StatusOK, rec.Code)
 			require.Equal(t, tt.expectedUsage, result.Usage)
+		})
+	}
+}
+
+func TestEstimateOpenAIAudioTranscriptionUsage(t *testing.T) {
+	tests := []struct {
+		name      string
+		fileSize  int64
+		wantUsage OpenAIUsage
+	}{
+		{
+			name:     "empty file does not estimate",
+			fileSize: 0,
+		},
+		{
+			name:     "minimum nonzero file charges one second",
+			fileSize: 1,
+			wantUsage: OpenAIUsage{
+				InputAudioTokens: 50,
+			},
+		},
+		{
+			name:     "rounds up partial pcm seconds",
+			fileSize: 64001,
+			wantUsage: OpenAIUsage{
+				InputAudioTokens: 150,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := estimateOpenAIAudioTranscriptionUsage(&OpenAIAudioTranscriptionsRequest{FileSizeBytes: tt.fileSize})
+			require.Equal(t, tt.wantUsage, got)
 		})
 	}
 }

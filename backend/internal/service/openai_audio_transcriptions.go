@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"math"
 	"mime"
 	"mime/multipart"
 	"net/http"
@@ -31,13 +32,15 @@ const (
 )
 
 type OpenAIAudioTranscriptionsRequest struct {
-	Endpoint      string
-	ContentType   string
-	Body          []byte
-	Model         string
-	ExplicitModel bool
-	Language      string
-	FileName      string
+	Endpoint        string
+	ContentType     string
+	Body            []byte
+	Model           string
+	ExplicitModel   bool
+	Language        string
+	FileName        string
+	FileSizeBytes   int64
+	FileContentType string
 }
 
 func (r *OpenAIAudioTranscriptionsRequest) IsTranscribeAlias() bool {
@@ -140,7 +143,13 @@ func parseOpenAIAudioTranscriptionsMultipartRequest(body []byte, contentType str
 		if name == "file" {
 			hasFile = true
 			req.FileName = strings.TrimSpace(part.FileName())
+			req.FileContentType = strings.TrimSpace(part.Header.Get("Content-Type"))
+			fileSize, copyErr := io.Copy(io.Discard, part)
 			_ = part.Close()
+			if copyErr != nil {
+				return fmt.Errorf("read multipart file: %w", copyErr)
+			}
+			req.FileSizeBytes = fileSize
 			continue
 		}
 
@@ -290,7 +299,10 @@ func (s *OpenAIGatewayService) ForwardAudioTranscriptions(
 	}
 	c.Data(resp.StatusCode, contentType, body)
 
-	usage, _ := extractOpenAIUsageFromJSONBytes(body)
+	usage, ok := extractOpenAIUsageFromJSONBytes(body)
+	if !ok {
+		usage = estimateOpenAIAudioTranscriptionUsage(parsed)
+	}
 	return &OpenAIForwardResult{
 		RequestID:       resp.Header.Get("x-request-id"),
 		Usage:           usage,
@@ -300,6 +312,21 @@ func (s *OpenAIGatewayService) ForwardAudioTranscriptions(
 		ResponseHeaders: resp.Header.Clone(),
 		Duration:        time.Since(startTime),
 	}, nil
+}
+
+func estimateOpenAIAudioTranscriptionUsage(parsed *OpenAIAudioTranscriptionsRequest) OpenAIUsage {
+	if parsed == nil || parsed.FileSizeBytes <= 0 {
+		return OpenAIUsage{}
+	}
+	// Fallback for ChatGPT transcribe responses that return text without usage.
+	// Estimate duration as 16 kHz 16-bit mono PCM, then use 50 audio tokens/sec.
+	const bytesPerSecond = 16000 * 2
+	const audioTokensPerSecond = 50
+	seconds := math.Ceil(float64(parsed.FileSizeBytes) / float64(bytesPerSecond))
+	if seconds < 1 {
+		seconds = 1
+	}
+	return OpenAIUsage{InputAudioTokens: int(seconds * audioTokensPerSecond)}
 }
 
 func (s *OpenAIGatewayService) buildOpenAIAudioTranscriptionsRequest(

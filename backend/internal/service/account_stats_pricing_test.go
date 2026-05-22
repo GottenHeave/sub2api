@@ -254,6 +254,29 @@ func TestCalculateStatsCost_TokenBilling_WithAudioTokens(t *testing.T) {
 	require.InDelta(t, expected, *result, 1e-12)
 }
 
+func TestCalculateStatsCost_TokenBilling_WithAudioOnlyTokens(t *testing.T) {
+	pricing := &ChannelModelPricing{
+		BillingMode:     BillingModeToken,
+		InputPrice:      testPtrFloat64(0.001),
+		OutputPrice:     testPtrFloat64(0.002),
+		CacheWritePrice: testPtrFloat64(0.003),
+		CacheReadPrice:  testPtrFloat64(0.004),
+	}
+	tokens := UsageTokens{
+		AudioInputTokens:         10,
+		AudioOutputTokens:        5,
+		AudioCacheCreationTokens: 3,
+		AudioCacheReadTokens:     2,
+	}
+	result := calculateStatsCost(pricing, tokens, 1)
+	require.NotNil(t, result)
+	expected := 10*0.001 +
+		5*0.002 +
+		3*0.003 +
+		2*0.004
+	require.InDelta(t, expected, *result, 1e-12)
+}
+
 func TestCalculateStatsCost_TokenBilling_WithImageOutput(t *testing.T) {
 	pricing := &ChannelModelPricing{
 		BillingMode:      BillingModeToken,
