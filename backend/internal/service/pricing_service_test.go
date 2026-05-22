@@ -42,6 +42,7 @@ func TestParsePricingData_ParsesAudioTokenPricing(t *testing.T) {
 	body := []byte(`{
 		"gpt-realtime": {
 			"input_cost_per_audio_token": 0.000032,
+			"input_cost_per_audio_token_priority": 0.000048,
 			"output_cost_per_audio_token": 0.000064,
 			"cache_creation_input_audio_token_cost": 0.0000004,
 			"cache_read_input_audio_token_cost": 0.00000004,
@@ -55,6 +56,7 @@ func TestParsePricingData_ParsesAudioTokenPricing(t *testing.T) {
 	pricing := data["gpt-realtime"]
 	require.NotNil(t, pricing)
 	require.InDelta(t, 0.000032, pricing.InputCostPerAudioToken, 1e-12)
+	require.InDelta(t, 0.000048, pricing.InputCostPerAudioTokenPriority, 1e-12)
 	require.InDelta(t, 0.000064, pricing.OutputCostPerAudioToken, 1e-12)
 	require.InDelta(t, 0.0000004, pricing.CacheCreationInputAudioTokenCost, 1e-12)
 	require.InDelta(t, 0.00000004, pricing.CacheReadInputAudioTokenCost, 1e-12)

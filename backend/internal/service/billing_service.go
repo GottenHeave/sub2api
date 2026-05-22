@@ -53,6 +53,7 @@ type ModelPricing struct {
 	CacheCreation5mPrice            float64 // 5分钟缓存创建每token价格 (USD)
 	CacheCreation1hPrice            float64 // 1小时缓存创建每token价格 (USD)
 	AudioInputPricePerToken         float64 // 音频输入 token 价格 (USD)
+	AudioInputPricePerTokenPriority float64 // priority service tier 下音频输入 token 价格 (USD)
 	AudioOutputPricePerToken        float64 // 音频输出 token 价格 (USD)
 	AudioCacheCreationPricePerToken float64 // 音频缓存创建 token 价格 (USD)
 	AudioCacheReadPricePerToken     float64 // 音频缓存读取 token 价格 (USD)
@@ -77,7 +78,8 @@ func usePriorityServiceTierPricing(serviceTier string, pricing *ModelPricing) bo
 	if pricing == nil || normalizeBillingServiceTier(serviceTier) != "priority" {
 		return false
 	}
-	return pricing.InputPricePerTokenPriority > 0 || pricing.OutputPricePerTokenPriority > 0 || pricing.CacheReadPricePerTokenPriority > 0
+	return pricing.InputPricePerTokenPriority > 0 || pricing.OutputPricePerTokenPriority > 0 ||
+		pricing.CacheReadPricePerTokenPriority > 0 || pricing.AudioInputPricePerTokenPriority > 0
 }
 
 func serviceTierCostMultiplier(serviceTier string) float64 {
@@ -352,6 +354,7 @@ func (s *BillingService) GetModelPricing(model string) (*ModelPricing, error) {
 				CacheCreation5mPrice:            price5m,
 				CacheCreation1hPrice:            price1h,
 				AudioInputPricePerToken:         litellmPricing.InputCostPerAudioToken,
+				AudioInputPricePerTokenPriority: litellmPricing.InputCostPerAudioTokenPriority,
 				AudioOutputPricePerToken:        litellmPricing.OutputCostPerAudioToken,
 				AudioCacheCreationPricePerToken: litellmPricing.CacheCreationInputAudioTokenCost,
 				AudioCacheReadPricePerToken:     litellmPricing.CacheReadInputAudioTokenCost,
@@ -520,6 +523,9 @@ func (s *BillingService) computeTokenBreakdown(
 	bd.InputCost = float64(textInputTokens) * inputPrice
 	if tokens.AudioInputTokens > 0 {
 		audioInputPrice := pricing.AudioInputPricePerToken
+		if normalizeBillingServiceTier(serviceTier) == "priority" && pricing.AudioInputPricePerTokenPriority > 0 {
+			audioInputPrice = pricing.AudioInputPricePerTokenPriority
+		}
 		if audioInputPrice == 0 {
 			audioInputPrice = inputPrice
 		}

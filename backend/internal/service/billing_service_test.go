@@ -731,6 +731,8 @@ func TestGetModelPricing_MapsDynamicPriorityFieldsIntoBillingPricing(t *testing.
 				InputCostPerTokenPriority:           2e-6,
 				OutputCostPerToken:                  3e-6,
 				OutputCostPerTokenPriority:          6e-6,
+				InputCostPerAudioToken:              9e-6,
+				InputCostPerAudioTokenPriority:      11e-6,
 				CacheCreationInputTokenCost:         4e-6,
 				CacheCreationInputTokenCostAbove1hr: 5e-6,
 				CacheReadInputTokenCost:             7e-7,
@@ -748,6 +750,8 @@ func TestGetModelPricing_MapsDynamicPriorityFieldsIntoBillingPricing(t *testing.
 	require.InDelta(t, 2e-6, pricing.InputPricePerTokenPriority, 1e-12)
 	require.InDelta(t, 3e-6, pricing.OutputPricePerToken, 1e-12)
 	require.InDelta(t, 6e-6, pricing.OutputPricePerTokenPriority, 1e-12)
+	require.InDelta(t, 9e-6, pricing.AudioInputPricePerToken, 1e-12)
+	require.InDelta(t, 11e-6, pricing.AudioInputPricePerTokenPriority, 1e-12)
 	require.InDelta(t, 4e-6, pricing.CacheCreation5mPrice, 1e-12)
 	require.InDelta(t, 5e-6, pricing.CacheCreation1hPrice, 1e-12)
 	require.True(t, pricing.SupportsCacheBreakdown)
@@ -756,6 +760,65 @@ func TestGetModelPricing_MapsDynamicPriorityFieldsIntoBillingPricing(t *testing.
 	require.Equal(t, 999, pricing.LongContextInputThreshold)
 	require.InDelta(t, 1.5, pricing.LongContextInputMultiplier, 1e-12)
 	require.InDelta(t, 1.25, pricing.LongContextOutputMultiplier, 1e-12)
+}
+
+func TestCalculateCostWithServiceTier_PriorityUsesAudioInputPriorityPricing(t *testing.T) {
+	svc := NewBillingService(&config.Config{}, &PricingService{
+		pricingData: map[string]*LiteLLMModelPricing{
+			"dynamic-audio-priority": {
+				InputCostPerToken:              1e-6,
+				InputCostPerTokenPriority:      2e-6,
+				OutputCostPerToken:             3e-6,
+				InputCostPerAudioToken:         9e-6,
+				InputCostPerAudioTokenPriority: 11e-6,
+			},
+		},
+	})
+	tokens := UsageTokens{InputTokens: 100, AudioInputTokens: 10, OutputTokens: 5}
+
+	baseCost, err := svc.CalculateCost("dynamic-audio-priority", tokens, 1.0)
+	require.NoError(t, err)
+	require.InDelta(t, 90*1e-6+10*9e-6, baseCost.InputCost, 1e-12)
+
+	priorityCost, err := svc.CalculateCostWithServiceTier("dynamic-audio-priority", tokens, 1.0, "priority")
+	require.NoError(t, err)
+	require.InDelta(t, 90*2e-6+10*11e-6, priorityCost.InputCost, 1e-12)
+}
+
+func TestCalculateCostWithServiceTier_AudioInputPriorityAloneUsesExplicitPriorityPricing(t *testing.T) {
+	svc := NewBillingService(&config.Config{}, &PricingService{
+		pricingData: map[string]*LiteLLMModelPricing{
+			"dynamic-audio-priority-only": {
+				InputCostPerToken:              1e-6,
+				OutputCostPerToken:             3e-6,
+				InputCostPerAudioToken:         9e-6,
+				InputCostPerAudioTokenPriority: 11e-6,
+			},
+		},
+	})
+	tokens := UsageTokens{InputTokens: 100, AudioInputTokens: 10}
+
+	priorityCost, err := svc.CalculateCostWithServiceTier("dynamic-audio-priority-only", tokens, 1.0, "priority")
+	require.NoError(t, err)
+	require.InDelta(t, 90*1e-6+10*11e-6, priorityCost.InputCost, 1e-12)
+}
+
+func TestCalculateCostWithServiceTier_PriorityAudioInputFallsBackToNormalAudioPrice(t *testing.T) {
+	svc := NewBillingService(&config.Config{}, &PricingService{
+		pricingData: map[string]*LiteLLMModelPricing{
+			"dynamic-audio-priority-fallback": {
+				InputCostPerToken:         1e-6,
+				InputCostPerTokenPriority: 2e-6,
+				OutputCostPerToken:        3e-6,
+				InputCostPerAudioToken:    9e-6,
+			},
+		},
+	})
+	tokens := UsageTokens{InputTokens: 100, AudioInputTokens: 10, OutputTokens: 5}
+
+	priorityCost, err := svc.CalculateCostWithServiceTier("dynamic-audio-priority-fallback", tokens, 1.0, "priority")
+	require.NoError(t, err)
+	require.InDelta(t, 90*2e-6+10*9e-6, priorityCost.InputCost, 1e-12)
 }
 
 // ---------------------------------------------------------------------------
