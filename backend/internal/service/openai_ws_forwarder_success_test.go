@@ -171,6 +171,192 @@ func TestOpenAIGatewayService_Forward_WSv2_SuccessAndBindSticky(t *testing.T) {
 	require.Equal(t, "resp_new_1", gjson.GetBytes(responseBody, "id").String())
 }
 
+func TestOpenAIGatewayService_BuildOpenAIRealtimeWSURL(t *testing.T) {
+	svc := &OpenAIGatewayService{
+		cfg: &config.Config{Security: config.SecurityConfig{URLAllowlist: config.URLAllowlistConfig{Enabled: false}}},
+	}
+	account := &Account{
+		ID:          1,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeAPIKey,
+		Status:      StatusActive,
+		Schedulable: true,
+		Credentials: map[string]any{"api_key": "sk-test"},
+	}
+
+	got, err := svc.buildOpenAIRealtimeWSURL(account, "gpt-realtime")
+	require.NoError(t, err)
+	require.Equal(t, "wss://api.openai.com/v1/realtime?model=gpt-realtime", got)
+}
+
+func TestOpenAIGatewayService_BuildOpenAIRealtimeWSURLRejectsOAuth(t *testing.T) {
+	svc := &OpenAIGatewayService{}
+	account := &Account{
+		ID:          1,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Status:      StatusActive,
+		Schedulable: true,
+	}
+
+	_, err := svc.buildOpenAIRealtimeWSURL(account, "gpt-realtime")
+	require.ErrorContains(t, err, "API key account")
+}
+
+func TestOpenAIGatewayService_BuildOpenAIWSHeadersRealtimeOmitsResponsesBeta(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodGet, "/v1/realtime?model=gpt-realtime", nil)
+
+	svc := &OpenAIGatewayService{}
+	account := &Account{ID: 1, Platform: PlatformOpenAI, Type: AccountTypeAPIKey}
+	headers, _ := svc.buildOpenAIWSHeaders(c, account, "sk-test", OpenAIWSProtocolDecision{Transport: OpenAIUpstreamTransportResponsesWebsocketV2}, false, "", "", "")
+
+	require.Equal(t, "Bearer sk-test", headers.Get("Authorization"))
+	require.Empty(t, headers.Get("OpenAI-Beta"))
+}
+
+func TestOpenAIGatewayService_ProxyRealtimeWebSocketFromClient_RewritesSessionUpdateModel(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	cfg := &config.Config{}
+	cfg.Security.URLAllowlist.Enabled = false
+	cfg.Security.URLAllowlist.AllowInsecureHTTP = true
+	cfg.Gateway.OpenAIWS.Enabled = true
+	cfg.Gateway.OpenAIWS.APIKeyEnabled = true
+	cfg.Gateway.OpenAIWS.ResponsesWebsocketsV2 = true
+	cfg.Gateway.OpenAIWS.DialTimeoutSeconds = 3
+	cfg.Gateway.OpenAIWS.ReadTimeoutSeconds = 3
+	cfg.Gateway.OpenAIWS.WriteTimeoutSeconds = 3
+
+	captureConn := &openAIWSCaptureConn{
+		readDelays: []time.Duration{200 * time.Millisecond},
+		events: [][]byte{
+			[]byte(`{"type":"session.created","session":{"id":"sess_1","model":"gpt-realtime"}}`),
+		},
+	}
+	captureDialer := &openAIWSCaptureDialer{conn: captureConn}
+	svc := &OpenAIGatewayService{
+		cfg:                       cfg,
+		openaiWSResolver:          NewOpenAIWSProtocolResolver(cfg),
+		openaiWSPassthroughDialer: captureDialer,
+	}
+
+	account := &Account{
+		ID:          1,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeAPIKey,
+		Status:      StatusActive,
+		Schedulable: true,
+		Credentials: map[string]any{
+			"api_key": "sk-test",
+			"model_mapping": map[string]any{
+				"client-realtime":      "gpt-realtime",
+				"client-realtime-next": "gpt-realtime-next",
+			},
+		},
+		Extra: map[string]any{
+			"responses_websockets_v2_enabled": true,
+		},
+	}
+
+	type hookPayload struct {
+		Turn          int
+		OriginalModel string
+		Payload       []byte
+	}
+	hookCh := make(chan hookPayload, 2)
+	hooks := &OpenAIWSIngressHooks{
+		InitialRequestModel: "client-realtime",
+		BeforeRequest: func(turn int, payload []byte, originalModel string) error {
+			payloadCopy := append([]byte(nil), payload...)
+			hookCh <- hookPayload{
+				Turn:          turn,
+				OriginalModel: originalModel,
+				Payload:       payloadCopy,
+			}
+			return nil
+		},
+	}
+
+	serverErrCh := make(chan error, 1)
+	wsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := coderws.Accept(w, r, nil)
+		if err != nil {
+			serverErrCh <- err
+			return
+		}
+		defer func() {
+			_ = conn.CloseNow()
+		}()
+
+		rec := httptest.NewRecorder()
+		ginCtx, _ := gin.CreateTestContext(rec)
+		req := r.Clone(r.Context())
+		req.URL.Path = "/v1/realtime"
+		req.URL.RawQuery = "model=client-realtime"
+		ginCtx.Request = req
+
+		serverErrCh <- svc.ProxyRealtimeWebSocketFromClient(r.Context(), ginCtx, conn, account, "sk-test", nil, "client-realtime", hooks)
+	}))
+	defer wsServer.Close()
+
+	dialCtx, cancelDial := context.WithTimeout(context.Background(), 3*time.Second)
+	clientConn, _, err := coderws.Dial(dialCtx, "ws"+strings.TrimPrefix(wsServer.URL, "http"), nil)
+	cancelDial()
+	require.NoError(t, err)
+
+	writeCtx, cancelWrite := context.WithTimeout(context.Background(), 3*time.Second)
+	err = clientConn.Write(writeCtx, coderws.MessageText, []byte(`{"type":"session.update","session":{"model":"client-realtime","instructions":"hi"}}`))
+	cancelWrite()
+	require.NoError(t, err)
+
+	writeNextCtx, cancelWriteNext := context.WithTimeout(context.Background(), 3*time.Second)
+	err = clientConn.Write(writeNextCtx, coderws.MessageText, []byte(`{"type":"session.update","session":{"model":"client-realtime-next","instructions":"next"}}`))
+	cancelWriteNext()
+	require.NoError(t, err)
+
+	require.Eventually(t, func() bool {
+		return len(captureConn.Writes()) >= 2
+	}, time.Second, 10*time.Millisecond)
+
+	_ = clientConn.Close(coderws.StatusNormalClosure, "done")
+	<-serverErrCh
+
+	require.Equal(t, "wss://api.openai.com/v1/realtime?model=gpt-realtime", captureDialer.LastURL())
+	headers := captureDialer.LastHeaders()
+	require.Equal(t, "Bearer sk-test", headers.Get("Authorization"))
+	require.Empty(t, headers.Get("OpenAI-Beta"))
+
+	writes := captureConn.Writes()
+	require.Len(t, writes, 2)
+	require.Equal(t, "gpt-realtime", gjson.Get(requestToJSONString(writes[0]), "session.model").String())
+	require.Equal(t, "hi", gjson.Get(requestToJSONString(writes[0]), "session.instructions").String())
+	require.Equal(t, "gpt-realtime-next", gjson.Get(requestToJSONString(writes[1]), "session.model").String())
+	require.Equal(t, "next", gjson.Get(requestToJSONString(writes[1]), "session.instructions").String())
+
+	var hookPayloads []hookPayload
+	for len(hookPayloads) < 2 {
+		select {
+		case got := <-hookCh:
+			hookPayloads = append(hookPayloads, got)
+		case <-time.After(time.Second):
+			t.Fatal("expected BeforeRequest hooks for session.update frames")
+		}
+	}
+	require.Equal(t, 2, hookPayloads[0].Turn)
+	require.Equal(t, "gpt-realtime", hookPayloads[0].OriginalModel)
+	require.Equal(t, "session.update", gjson.GetBytes(hookPayloads[0].Payload, "type").String())
+	require.Equal(t, "gpt-realtime", gjson.GetBytes(hookPayloads[0].Payload, "session.model").String())
+	require.Equal(t, "hi", gjson.GetBytes(hookPayloads[0].Payload, "session.instructions").String())
+	require.Equal(t, 2, hookPayloads[1].Turn)
+	require.Equal(t, "gpt-realtime-next", hookPayloads[1].OriginalModel)
+	require.Equal(t, "session.update", gjson.GetBytes(hookPayloads[1].Payload, "type").String())
+	require.Equal(t, "gpt-realtime-next", gjson.GetBytes(hookPayloads[1].Payload, "session.model").String())
+	require.Equal(t, "next", gjson.GetBytes(hookPayloads[1].Payload, "session.instructions").String())
+}
+
 func TestOpenAIGatewayService_Forward_WSv2_ImageGenerationCountsOutputs(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -1395,6 +1581,7 @@ func TestOpenAIGatewayService_Forward_WSv2ReadTimeoutAppliesPerRead(t *testing.T
 type openAIWSCaptureDialer struct {
 	mu          sync.Mutex
 	conn        *openAIWSCaptureConn
+	lastURL     string
 	lastHeaders http.Header
 	handshake   http.Header
 	dialCount   int
@@ -1407,14 +1594,26 @@ func (d *openAIWSCaptureDialer) Dial(
 	proxyURL string,
 ) (openAIWSClientConn, int, http.Header, error) {
 	_ = ctx
-	_ = wsURL
 	_ = proxyURL
 	d.mu.Lock()
+	d.lastURL = wsURL
 	d.lastHeaders = cloneHeader(headers)
 	d.dialCount++
 	respHeaders := cloneHeader(d.handshake)
 	d.mu.Unlock()
 	return d.conn, 0, respHeaders, nil
+}
+
+func (d *openAIWSCaptureDialer) LastURL() string {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.lastURL
+}
+
+func (d *openAIWSCaptureDialer) LastHeaders() http.Header {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return cloneHeader(d.lastHeaders)
 }
 
 func (d *openAIWSCaptureDialer) DialCount() int {
@@ -1514,6 +1713,16 @@ func (c *openAIWSCaptureConn) Close() error {
 	defer c.mu.Unlock()
 	c.closed = true
 	return nil
+}
+
+func (c *openAIWSCaptureConn) Writes() []map[string]any {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	out := make([]map[string]any, len(c.writes))
+	for i := range c.writes {
+		out[i] = cloneMapStringAny(c.writes[i])
+	}
+	return out
 }
 
 func cloneMapStringAny(src map[string]any) map[string]any {

@@ -50,6 +50,26 @@ func TestWSResponseCreate_DefaultPassesPriorityAndNormalizesFast(t *testing.T) {
 	require.Equal(t, "priority", gjson.GetBytes(updated, "service_tier").String())
 }
 
+func TestOpenAIRealtimeSessionUpdateRewritesToUpstreamModel(t *testing.T) {
+	account := &Account{
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"model_mapping": map[string]any{
+				"client-realtime": "gpt-realtime",
+			},
+		},
+	}
+	payload := []byte(`{"type":"session.update","session":{"model":"client-realtime","instructions":"hi"}}`)
+
+	upstreamModel := openAIRealtimeUpstreamModel(account, "client-realtime")
+	updated := rewriteOpenAIRealtimeSessionModel(payload, upstreamModel)
+
+	require.Equal(t, "gpt-realtime", upstreamModel)
+	require.Equal(t, "gpt-realtime", gjson.GetBytes(updated, "session.model").String())
+	require.Equal(t, "hi", gjson.GetBytes(updated, "session.instructions").String())
+}
+
 func TestWSResponseCreate_ExplicitFilterStripsServiceTier(t *testing.T) {
 	svc := newOpenAIGatewayServiceWithSettings(t, openAIFastFilterPriorityPolicy())
 	account := &Account{Platform: PlatformOpenAI, Type: AccountTypeAPIKey}

@@ -93,6 +93,30 @@ func TestOpenAIHandleStreamingAwareError_JSONEscaping(t *testing.T) {
 	}
 }
 
+func TestResolveOpenAIWebSocketRequestModelRealtime(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodGet, "/v1/realtime?model=gpt-realtime-query", nil)
+
+	got := resolveOpenAIWebSocketRequestModel(c, []byte(`{"type":"session.update","session":{"model":"gpt-realtime-session"}}`), openAIWebSocketEndpointOptions{Realtime: true})
+	require.Equal(t, "gpt-realtime-query", got)
+
+	c.Request = httptest.NewRequest(http.MethodGet, "/v1/realtime", nil)
+	got = resolveOpenAIWebSocketRequestModel(c, []byte(`{"type":"session.update","session":{"model":"gpt-realtime-session"}}`), openAIWebSocketEndpointOptions{Realtime: true})
+	require.Equal(t, "gpt-realtime-session", got)
+}
+
+func TestResolveOpenAIWebSocketRequestModelResponsesRequiresTopLevelModel(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodGet, "/v1/responses", nil)
+
+	got := resolveOpenAIWebSocketRequestModel(c, []byte(`{"type":"session.update","session":{"model":"gpt-realtime-session"}}`), openAIWebSocketEndpointOptions{})
+	require.Empty(t, got)
+}
+
 func TestResolveOpenAIMessagesMetadataSession_DoesNotDerivePromptCacheKey(t *testing.T) {
 	body := []byte(`{"model":"claude-sonnet-4-5","metadata":{"user_id":"claude-code-session"},"messages":[{"role":"user","content":"hello"}]}`)
 

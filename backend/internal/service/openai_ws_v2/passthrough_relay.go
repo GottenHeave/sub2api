@@ -59,6 +59,7 @@ type RelayOptions struct {
 	IdleTimeout          time.Duration
 	UpstreamDrainTimeout time.Duration
 	FirstMessageType     coderws.MessageType
+	InitialRequestModel  string
 	OnUsageParseFailure  func(eventType string, usageRaw string)
 	OnTurnComplete       func(turn RelayTurnResult)
 	OnTrace              func(event RelayTraceEvent)
@@ -114,6 +115,9 @@ func Relay(
 	options RelayOptions,
 ) (RelayResult, *RelayExit) {
 	result := RelayResult{RequestModel: strings.TrimSpace(gjson.GetBytes(firstClientMessage, "model").String())}
+	if result.RequestModel == "" {
+		result.RequestModel = strings.TrimSpace(options.InitialRequestModel)
+	}
 	if clientConn == nil || upstreamConn == nil {
 		return result, &RelayExit{Stage: "relay_init", Err: errors.New("relay connection is nil")}
 	}
@@ -170,25 +174,27 @@ func Relay(
 		MessageType:  relayMessageTypeString(firstMessageType),
 	})
 
-	if err := writeUpstream(firstMessageType, firstClientMessage); err != nil {
-		result.Duration = nowFn().Sub(startAt)
+	if len(firstClientMessage) > 0 {
+		if err := writeUpstream(firstMessageType, firstClientMessage); err != nil {
+			result.Duration = nowFn().Sub(startAt)
+			emitRelayTrace(onTrace, RelayTraceEvent{
+				Stage:        "write_first_message_failed",
+				Direction:    "client_to_upstream",
+				MessageType:  relayMessageTypeString(firstMessageType),
+				PayloadBytes: len(firstClientMessage),
+				Error:        err.Error(),
+			})
+			return result, &RelayExit{Stage: "write_upstream", Err: err}
+		}
+		clientToUpstreamFrames.Add(1)
 		emitRelayTrace(onTrace, RelayTraceEvent{
-			Stage:        "write_first_message_failed",
+			Stage:        "write_first_message_ok",
 			Direction:    "client_to_upstream",
 			MessageType:  relayMessageTypeString(firstMessageType),
 			PayloadBytes: len(firstClientMessage),
-			Error:        err.Error(),
 		})
-		return result, &RelayExit{Stage: "write_upstream", Err: err}
+		markActivity()
 	}
-	clientToUpstreamFrames.Add(1)
-	emitRelayTrace(onTrace, RelayTraceEvent{
-		Stage:        "write_first_message_ok",
-		Direction:    "client_to_upstream",
-		MessageType:  relayMessageTypeString(firstMessageType),
-		PayloadBytes: len(firstClientMessage),
-	})
-	markActivity()
 
 	exitCh := make(chan relayExitSignal, 3)
 	dropDownstreamWrites := atomic.Bool{}
@@ -725,7 +731,9 @@ func enrichResult(result *RelayResult, state *relayState, duration time.Duration
 	if state == nil {
 		return
 	}
-	result.RequestModel = state.requestModel
+	if requestModel := strings.TrimSpace(state.requestModel); requestModel != "" {
+		result.RequestModel = requestModel
+	}
 	result.Usage = state.usage
 	result.RequestID = state.lastResponseID
 	result.TerminalEventType = state.terminalEventType

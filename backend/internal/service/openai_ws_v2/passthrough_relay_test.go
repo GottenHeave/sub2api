@@ -199,6 +199,32 @@ func TestRelay_BasicRelayAndUsage(t *testing.T) {
 	require.JSONEq(t, `{"type":"response.completed","response":{"id":"resp_123","usage":{"input_tokens":7,"output_tokens":3,"input_tokens_details":{"cached_tokens":2}}}}`, string(clientWrites[0].payload))
 }
 
+func TestRelay_EmptyFirstMessageAllowsServerFirstRealtime(t *testing.T) {
+	t.Parallel()
+
+	clientConn := newPassthroughTestFrameConn(nil, false)
+	upstreamConn := newPassthroughTestFrameConn([]passthroughTestFrame{
+		{
+			msgType: coderws.MessageText,
+			payload: []byte(`{"type":"session.created","session":{"id":"sess_123","model":"gpt-realtime"}}`),
+		},
+	}, true)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	result, relayExit := Relay(ctx, clientConn, upstreamConn, nil, RelayOptions{InitialRequestModel: "gpt-realtime"})
+	require.Nil(t, relayExit)
+	require.Equal(t, "gpt-realtime", result.RequestModel)
+	require.Equal(t, int64(0), result.ClientToUpstreamFrames)
+	require.Equal(t, int64(1), result.UpstreamToClientFrames)
+	require.Empty(t, upstreamConn.Writes())
+
+	clientWrites := clientConn.Writes()
+	require.Len(t, clientWrites, 1)
+	require.JSONEq(t, `{"type":"session.created","session":{"id":"sess_123","model":"gpt-realtime"}}`, string(clientWrites[0].payload))
+}
+
 func TestRelay_FunctionCallOutputBytesPreserved(t *testing.T) {
 	t.Parallel()
 
