@@ -322,7 +322,7 @@ func TestOpenAIGatewayService_ProxyRealtimeWebSocketFromClient_RewritesSessionUp
 	}, time.Second, 10*time.Millisecond)
 
 	_ = clientConn.Close(coderws.StatusNormalClosure, "done")
-	_ = <-serverErrCh
+	<-serverErrCh
 
 	require.Equal(t, "wss://api.openai.com/v1/realtime?model=gpt-realtime", captureDialer.LastURL())
 	headers := captureDialer.LastHeaders()

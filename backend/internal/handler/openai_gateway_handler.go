@@ -1153,7 +1153,7 @@ func (h *OpenAIGatewayHandler) openAIWebSocket(c *gin.Context, opts openAIWebSoc
 		firstMessage []byte
 	)
 	queryModel := strings.TrimSpace(c.Request.URL.Query().Get("model"))
-	if !(opts.Realtime && queryModel != "") {
+	if !opts.Realtime || queryModel == "" {
 		readCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		var readErr error
 		msgType, firstMessage, readErr = wsConn.Read(readCtx)
