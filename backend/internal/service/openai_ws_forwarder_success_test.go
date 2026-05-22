@@ -252,7 +252,8 @@ func TestOpenAIGatewayService_ProxyRealtimeWebSocketFromClient_RewritesSessionUp
 		Credentials: map[string]any{
 			"api_key": "sk-test",
 			"model_mapping": map[string]any{
-				"client-realtime": "gpt-realtime",
+				"client-realtime":      "gpt-realtime",
+				"client-realtime-next": "gpt-realtime-next",
 			},
 		},
 		Extra: map[string]any{
@@ -265,7 +266,7 @@ func TestOpenAIGatewayService_ProxyRealtimeWebSocketFromClient_RewritesSessionUp
 		OriginalModel string
 		Payload       []byte
 	}
-	hookCh := make(chan hookPayload, 1)
+	hookCh := make(chan hookPayload, 2)
 	hooks := &OpenAIWSIngressHooks{
 		InitialRequestModel: "client-realtime",
 		BeforeRequest: func(turn int, payload []byte, originalModel string) error {
@@ -311,8 +312,13 @@ func TestOpenAIGatewayService_ProxyRealtimeWebSocketFromClient_RewritesSessionUp
 	cancelWrite()
 	require.NoError(t, err)
 
+	writeNextCtx, cancelWriteNext := context.WithTimeout(context.Background(), 3*time.Second)
+	err = clientConn.Write(writeNextCtx, coderws.MessageText, []byte(`{"type":"session.update","session":{"model":"client-realtime-next","instructions":"next"}}`))
+	cancelWriteNext()
+	require.NoError(t, err)
+
 	require.Eventually(t, func() bool {
-		return len(captureConn.Writes()) >= 1
+		return len(captureConn.Writes()) >= 2
 	}, time.Second, 10*time.Millisecond)
 
 	_ = clientConn.Close(coderws.StatusNormalClosure, "done")
@@ -324,20 +330,31 @@ func TestOpenAIGatewayService_ProxyRealtimeWebSocketFromClient_RewritesSessionUp
 	require.Empty(t, headers.Get("OpenAI-Beta"))
 
 	writes := captureConn.Writes()
-	require.NotEmpty(t, writes)
+	require.Len(t, writes, 2)
 	require.Equal(t, "gpt-realtime", gjson.Get(requestToJSONString(writes[0]), "session.model").String())
 	require.Equal(t, "hi", gjson.Get(requestToJSONString(writes[0]), "session.instructions").String())
+	require.Equal(t, "gpt-realtime-next", gjson.Get(requestToJSONString(writes[1]), "session.model").String())
+	require.Equal(t, "next", gjson.Get(requestToJSONString(writes[1]), "session.instructions").String())
 
-	select {
-	case got := <-hookCh:
-		require.Equal(t, 2, got.Turn)
-		require.Equal(t, "gpt-realtime", got.OriginalModel)
-		require.Equal(t, "session.update", gjson.GetBytes(got.Payload, "type").String())
-		require.Equal(t, "gpt-realtime", gjson.GetBytes(got.Payload, "session.model").String())
-		require.Equal(t, "hi", gjson.GetBytes(got.Payload, "session.instructions").String())
-	case <-time.After(time.Second):
-		t.Fatal("expected BeforeRequest hook for session.update frame")
+	var hookPayloads []hookPayload
+	for len(hookPayloads) < 2 {
+		select {
+		case got := <-hookCh:
+			hookPayloads = append(hookPayloads, got)
+		case <-time.After(time.Second):
+			t.Fatal("expected BeforeRequest hooks for session.update frames")
+		}
 	}
+	require.Equal(t, 2, hookPayloads[0].Turn)
+	require.Equal(t, "gpt-realtime", hookPayloads[0].OriginalModel)
+	require.Equal(t, "session.update", gjson.GetBytes(hookPayloads[0].Payload, "type").String())
+	require.Equal(t, "gpt-realtime", gjson.GetBytes(hookPayloads[0].Payload, "session.model").String())
+	require.Equal(t, "hi", gjson.GetBytes(hookPayloads[0].Payload, "session.instructions").String())
+	require.Equal(t, 2, hookPayloads[1].Turn)
+	require.Equal(t, "gpt-realtime-next", hookPayloads[1].OriginalModel)
+	require.Equal(t, "session.update", gjson.GetBytes(hookPayloads[1].Payload, "type").String())
+	require.Equal(t, "gpt-realtime-next", gjson.GetBytes(hookPayloads[1].Payload, "session.model").String())
+	require.Equal(t, "next", gjson.GetBytes(hookPayloads[1].Payload, "session.instructions").String())
 }
 
 func TestOpenAIGatewayService_Forward_WSv2_ImageGenerationCountsOutputs(t *testing.T) {
