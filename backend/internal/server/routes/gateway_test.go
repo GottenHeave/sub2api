@@ -42,6 +42,34 @@ func newGatewayRoutesTestRouter() *gin.Engine {
 	return router
 }
 
+func newGatewayRoutesTestRouterForPlatform(platform string) *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+
+	RegisterGatewayRoutes(
+		router,
+		&handler.Handlers{
+			Gateway:       &handler.GatewayHandler{},
+			OpenAIGateway: &handler.OpenAIGatewayHandler{},
+		},
+		servermiddleware.APIKeyAuthMiddleware(func(c *gin.Context) {
+			groupID := int64(1)
+			c.Set(string(servermiddleware.ContextKeyAPIKey), &service.APIKey{
+				GroupID: &groupID,
+				Group:   &service.Group{Platform: platform},
+			})
+			c.Next()
+		}),
+		nil,
+		nil,
+		nil,
+		nil,
+		&config.Config{},
+	)
+
+	return router
+}
+
 func TestGatewayRoutesOpenAIResponsesCompactPathIsRegistered(t *testing.T) {
 	router := newGatewayRoutesTestRouter()
 
@@ -87,6 +115,17 @@ func TestGatewayRoutesOpenAIRealtimePathIsRegistered(t *testing.T) {
 	router.ServeHTTP(w, req)
 	require.NotEqual(t, http.StatusNotFound, w.Code)
 	require.Equal(t, http.StatusUpgradeRequired, w.Code)
+}
+
+func TestGatewayRoutesOpenAIRealtimeRejectsNonOpenAIPlatform(t *testing.T) {
+	router := newGatewayRoutesTestRouterForPlatform(service.PlatformAnthropic)
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/realtime?model=gpt-realtime", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+	require.Equal(t, http.StatusNotFound, w.Code)
+	require.Contains(t, w.Body.String(), "Realtime API is not supported for this platform")
 }
 
 func TestGatewayRoutesOpenAIAudioTranscriptionsPathsAreRegistered(t *testing.T) {

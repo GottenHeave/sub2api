@@ -189,7 +189,7 @@ func TestOpenAIGatewayService_BuildOpenAIRealtimeWSURL(t *testing.T) {
 	require.Equal(t, "wss://api.openai.com/v1/realtime?model=gpt-realtime", got)
 }
 
-func TestOpenAIGatewayService_BuildOpenAIRealtimeWSURLRejectsOAuth(t *testing.T) {
+func TestOpenAIGatewayService_BuildOpenAIRealtimeWSURLAllowsOAuth(t *testing.T) {
 	svc := &OpenAIGatewayService{}
 	account := &Account{
 		ID:          1,
@@ -199,8 +199,23 @@ func TestOpenAIGatewayService_BuildOpenAIRealtimeWSURLRejectsOAuth(t *testing.T)
 		Schedulable: true,
 	}
 
+	got, err := svc.buildOpenAIRealtimeWSURL(account, "gpt-realtime")
+	require.NoError(t, err)
+	require.Equal(t, "wss://api.openai.com/v1/realtime?model=gpt-realtime", got)
+}
+
+func TestOpenAIGatewayService_BuildOpenAIRealtimeWSURLRejectsUnsupportedAccountType(t *testing.T) {
+	svc := &OpenAIGatewayService{}
+	account := &Account{
+		ID:          1,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeSetupToken,
+		Status:      StatusActive,
+		Schedulable: true,
+	}
+
 	_, err := svc.buildOpenAIRealtimeWSURL(account, "gpt-realtime")
-	require.ErrorContains(t, err, "API key account")
+	require.ErrorContains(t, err, "OpenAI API key or OAuth account")
 }
 
 func TestOpenAIGatewayService_BuildOpenAIWSHeadersRealtimeOmitsResponsesBeta(t *testing.T) {
@@ -214,6 +229,31 @@ func TestOpenAIGatewayService_BuildOpenAIWSHeadersRealtimeOmitsResponsesBeta(t *
 	headers, _ := svc.buildOpenAIWSHeaders(c, account, "sk-test", OpenAIWSProtocolDecision{Transport: OpenAIUpstreamTransportResponsesWebsocketV2}, false, "", "", "")
 
 	require.Equal(t, "Bearer sk-test", headers.Get("Authorization"))
+	require.Empty(t, headers.Get("OpenAI-Beta"))
+}
+
+func TestOpenAIGatewayService_BuildOpenAIWSHeadersRealtimeOAuthUsesCodexHeaders(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodGet, "/v1/realtime?model=gpt-realtime", nil)
+	c.Request.Header.Set("User-Agent", "Desktop/1.0")
+
+	svc := &OpenAIGatewayService{}
+	account := &Account{
+		ID:       1,
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"chatgpt_account_id": "chatgpt-account",
+		},
+	}
+	headers, _ := svc.buildOpenAIWSHeaders(c, account, "oauth-token", OpenAIWSProtocolDecision{Transport: OpenAIUpstreamTransportResponsesWebsocketV2}, false, "", "", "")
+
+	require.Equal(t, "Bearer oauth-token", headers.Get("Authorization"))
+	require.Equal(t, "chatgpt-account", headers.Get("chatgpt-account-id"))
+	require.NotEmpty(t, headers.Get("originator"))
+	require.Equal(t, codexCLIUserAgent, headers.Get("User-Agent"))
 	require.Empty(t, headers.Get("OpenAI-Beta"))
 }
 
