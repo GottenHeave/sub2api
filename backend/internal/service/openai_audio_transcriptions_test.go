@@ -173,21 +173,23 @@ func TestOpenAIGatewayServiceForwardAudioTranscriptions_UsagePolicy(t *testing.T
 		expectedUsage OpenAIUsage
 	}{
 		{
-			name:         "standard endpoint no usage estimates input audio tokens",
+			name:         "standard endpoint no usage estimates input and output tokens",
 			path:         "/v1/audio/transcriptions",
 			fields:       map[string]string{"model": "gpt-4o-mini-transcribe"},
 			responseBody: `{"text":"hello"}`,
 			expectedUsage: OpenAIUsage{
 				InputAudioTokens: 50,
+				OutputTokens:     2,
 			},
 		},
 		{
-			name:         "transcribe alias no usage estimates input audio tokens",
+			name:         "transcribe alias no usage estimates input and output tokens",
 			path:         "/transcribe",
 			fields:       map[string]string{"language": "en"},
 			responseBody: `{"text":"hello"}`,
 			expectedUsage: OpenAIUsage{
 				InputAudioTokens: 50,
+				OutputTokens:     2,
 			},
 		},
 		{
@@ -272,33 +274,43 @@ func TestOpenAIGatewayServiceForwardAudioTranscriptions_UsagePolicy(t *testing.T
 
 func TestEstimateOpenAIAudioTranscriptionUsage(t *testing.T) {
 	tests := []struct {
-		name      string
-		fileSize  int64
-		wantUsage OpenAIUsage
+		name         string
+		fileSize     int64
+		responseBody []byte
+		wantUsage    OpenAIUsage
 	}{
 		{
-			name:     "empty file does not estimate",
-			fileSize: 0,
+			name: "empty file and empty text does not estimate",
 		},
 		{
-			name:     "minimum nonzero file charges one second",
-			fileSize: 1,
+			name:         "minimum nonzero file charges one second and text output",
+			fileSize:     1,
+			responseBody: []byte(`{"text":"hello"}`),
 			wantUsage: OpenAIUsage{
 				InputAudioTokens: 50,
+				OutputTokens:     2,
 			},
 		},
 		{
-			name:     "rounds up partial pcm seconds",
-			fileSize: 64001,
+			name:         "rounds up partial pcm seconds",
+			fileSize:     64001,
+			responseBody: []byte(`{"text":""}`),
 			wantUsage: OpenAIUsage{
 				InputAudioTokens: 150,
+			},
+		},
+		{
+			name:         "text output can be counted without file size",
+			responseBody: []byte(`{"text":"abcd"}`),
+			wantUsage: OpenAIUsage{
+				OutputTokens: 1,
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := estimateOpenAIAudioTranscriptionUsage(&OpenAIAudioTranscriptionsRequest{FileSizeBytes: tt.fileSize})
+			got := estimateOpenAIAudioTranscriptionUsage(&OpenAIAudioTranscriptionsRequest{FileSizeBytes: tt.fileSize}, tt.responseBody)
 			require.Equal(t, tt.wantUsage, got)
 		})
 	}

@@ -18,6 +18,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
+	"github.com/tidwall/gjson"
 )
 
 const (
@@ -301,7 +302,7 @@ func (s *OpenAIGatewayService) ForwardAudioTranscriptions(
 
 	usage, ok := extractOpenAIUsageFromJSONBytes(body)
 	if !ok {
-		usage = estimateOpenAIAudioTranscriptionUsage(parsed)
+		usage = estimateOpenAIAudioTranscriptionUsage(parsed, body)
 	}
 	return &OpenAIForwardResult{
 		RequestID:       resp.Header.Get("x-request-id"),
@@ -314,19 +315,37 @@ func (s *OpenAIGatewayService) ForwardAudioTranscriptions(
 	}, nil
 }
 
-func estimateOpenAIAudioTranscriptionUsage(parsed *OpenAIAudioTranscriptionsRequest) OpenAIUsage {
-	if parsed == nil || parsed.FileSizeBytes <= 0 {
-		return OpenAIUsage{}
+func estimateOpenAIAudioTranscriptionUsage(parsed *OpenAIAudioTranscriptionsRequest, responseBody []byte) OpenAIUsage {
+	usage := OpenAIUsage{}
+	if parsed != nil && parsed.FileSizeBytes > 0 {
+		// Fallback for ChatGPT transcribe responses that return text without usage.
+		// Estimate duration as 16 kHz 16-bit mono PCM, then use 50 audio tokens/sec.
+		const bytesPerSecond = 16000 * 2
+		const audioTokensPerSecond = 50
+		seconds := math.Ceil(float64(parsed.FileSizeBytes) / float64(bytesPerSecond))
+		if seconds < 1 {
+			seconds = 1
+		}
+		usage.InputAudioTokens = int(seconds * audioTokensPerSecond)
 	}
-	// Fallback for ChatGPT transcribe responses that return text without usage.
-	// Estimate duration as 16 kHz 16-bit mono PCM, then use 50 audio tokens/sec.
-	const bytesPerSecond = 16000 * 2
-	const audioTokensPerSecond = 50
-	seconds := math.Ceil(float64(parsed.FileSizeBytes) / float64(bytesPerSecond))
-	if seconds < 1 {
-		seconds = 1
+
+	text := strings.TrimSpace(gjson.GetBytes(responseBody, "text").String())
+	if text != "" {
+		usage.OutputTokens = estimateOpenAIAudioTranscriptionTextTokens(text)
 	}
-	return OpenAIUsage{InputAudioTokens: int(seconds * audioTokensPerSecond)}
+	return usage
+}
+
+func estimateOpenAIAudioTranscriptionTextTokens(text string) int {
+	runeCount := len([]rune(strings.TrimSpace(text)))
+	if runeCount == 0 {
+		return 0
+	}
+	tokens := int(math.Ceil(float64(runeCount) / 4))
+	if tokens < 1 {
+		return 1
+	}
+	return tokens
 }
 
 func (s *OpenAIGatewayService) buildOpenAIAudioTranscriptionsRequest(
