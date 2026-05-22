@@ -471,6 +471,45 @@ func TestOpenAIGatewayServiceForwardAudioTranscriptions_FailoverStatuses(t *test
 	}
 }
 
+func TestOpenAIGatewayServiceForwardAudioTranscriptions_OAuthFailoverStatuses(t *testing.T) {
+	tests := []struct {
+		name   string
+		status int
+	}{
+		{name: "401", status: http.StatusUnauthorized},
+		{name: "403", status: http.StatusForbidden},
+		{name: "429", status: http.StatusTooManyRequests},
+		{name: "500", status: http.StatusInternalServerError},
+		{name: "503", status: http.StatusServiceUnavailable},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			body, contentType := buildOpenAIAudioTranscriptionMultipart(t, map[string]string{
+				"language": "en",
+			}, []byte("fake-audio"))
+			c, rec := newOpenAIAudioTranscriptionTestContext(http.MethodPost, "/transcribe", body, contentType)
+			upstream := &httpUpstreamRecorder{resp: newOpenAIAudioTranscriptionResponse(tt.status, `{"error":{"message":"temporary upstream failure"}}`)}
+			svc := &OpenAIGatewayService{
+				cfg:          &config.Config{},
+				httpUpstream: upstream,
+			}
+			account := openAIAudioTranscriptionOAuthAccount(8)
+
+			parsed, err := svc.ParseOpenAIAudioTranscriptionsRequest(c, body)
+			require.NoError(t, err)
+			result, err := svc.ForwardAudioTranscriptions(context.Background(), c, account, parsed, "")
+
+			require.Nil(t, result)
+			var failoverErr *UpstreamFailoverError
+			require.ErrorAs(t, err, &failoverErr)
+			require.Equal(t, tt.status, failoverErr.StatusCode)
+			require.Equal(t, chatgptTranscribeURL, upstream.lastReq.URL.String())
+			require.Empty(t, rec.Body.String(), "failover response should not be written before handler retry logic")
+		})
+	}
+}
+
 func TestOpenAIGatewayServiceForwardAudioTranscriptions_RequestErrorIsNotFailover(t *testing.T) {
 	body, contentType := buildOpenAIAudioTranscriptionMultipart(t, map[string]string{
 		"model": "gpt-4o-mini-transcribe",
@@ -544,6 +583,21 @@ func openAIAudioTranscriptionAPIKeyAccount(id int64) *Account {
 		Concurrency: 1,
 		Credentials: map[string]any{
 			"api_key": "sk-test",
+		},
+		Status:      StatusActive,
+		Schedulable: true,
+	}
+}
+
+func openAIAudioTranscriptionOAuthAccount(id int64) *Account {
+	return &Account{
+		ID:          id,
+		Name:        "oauth",
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"access_token": "oauth-token",
 		},
 		Status:      StatusActive,
 		Schedulable: true,
