@@ -1278,17 +1278,6 @@ func (h *OpenAIGatewayHandler) openAIWebSocket(c *gin.Context, opts openAIWebSoc
 	}
 
 	account := selection.Account
-	if opts.Realtime && account.Type != service.AccountTypeAPIKey {
-		if selection.ReleaseFunc != nil {
-			selection.ReleaseFunc()
-		}
-		reqLog.Warn("openai.realtime_account_type_unsupported",
-			zap.Int64("account_id", account.ID),
-			zap.String("account_type", account.Type),
-		)
-		closeOpenAIClientWS(wsConn, coderws.StatusTryAgainLater, "realtime websocket requires an OpenAI API key account")
-		return
-	}
 	accountMaxConcurrency := account.Concurrency
 	if selection.WaitPlan != nil && selection.WaitPlan.MaxConcurrency > 0 {
 		accountMaxConcurrency = selection.WaitPlan.MaxConcurrency
@@ -1512,9 +1501,6 @@ func openAIWebSocketPreviousResponseID(previousResponseID string, opts openAIWeb
 }
 
 func openAIWebSocketRequiredAccountType(opts openAIWebSocketEndpointOptions) string {
-	if opts.Realtime {
-		return service.AccountTypeAPIKey
-	}
 	return ""
 }
 

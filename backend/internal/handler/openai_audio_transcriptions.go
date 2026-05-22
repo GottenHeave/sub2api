@@ -112,7 +112,7 @@ func (h *OpenAIGatewayHandler) AudioTranscriptions(c *gin.Context) {
 			parsed.Model,
 			failedAccountIDs,
 			service.OpenAIUpstreamTransportHTTPSSE,
-			service.AccountTypeAPIKey,
+			service.OpenAIAudioTranscriptionsRequiredAccountTypes,
 			false,
 		)
 		if err != nil {

@@ -914,7 +914,15 @@ func openAIAccountTypeCompatible(account *Account, requiredAccountType string) b
 	if requiredAccountType == "" {
 		return true
 	}
-	return account != nil && account.Type == requiredAccountType
+	if account == nil {
+		return false
+	}
+	for _, candidate := range strings.Split(requiredAccountType, ",") {
+		if account.Type == strings.TrimSpace(candidate) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *defaultOpenAIAccountScheduler) ReportResult(accountID int64, success bool, firstTokenMs *int) {

@@ -1082,13 +1082,17 @@ func (s *OpenAIGatewayService) buildOpenAIWSURL(account *Account, endpoint strin
 	if endpoint == "" {
 		endpoint = "/v1/responses"
 	}
+	if endpoint == "/v1/realtime" && (account.Platform != PlatformOpenAI || (account.Type != AccountTypeAPIKey && account.Type != AccountTypeOAuth)) {
+		return "", errors.New("realtime websocket requires an OpenAI API key or OAuth account")
+	}
 	var targetURL string
 	switch account.Type {
 	case AccountTypeOAuth:
 		if endpoint == "/v1/realtime" {
-			return "", errors.New("realtime websocket requires an OpenAI API key account")
+			targetURL = openaiPlatformRealtimeAPIURL
+		} else {
+			targetURL = chatgptCodexURL
 		}
-		targetURL = chatgptCodexURL
 	case AccountTypeAPIKey:
 		baseURL := account.GetOpenAIBaseURL()
 		if baseURL == "" {
@@ -2438,10 +2442,10 @@ func (s *OpenAIGatewayService) ProxyRealtimeWebSocketFromClient(
 	if strings.TrimSpace(token) == "" {
 		return errors.New("token is empty")
 	}
-	if account.Type != AccountTypeAPIKey {
+	if account.Platform != PlatformOpenAI || (account.Type != AccountTypeAPIKey && account.Type != AccountTypeOAuth) {
 		return NewOpenAIWSClientCloseError(
 			coderws.StatusPolicyViolation,
-			"realtime websocket requires an OpenAI API key account",
+			"realtime websocket requires an OpenAI API key or OAuth account",
 			nil,
 		)
 	}

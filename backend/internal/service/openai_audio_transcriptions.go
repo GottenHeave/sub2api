@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
 )
@@ -22,9 +23,11 @@ const (
 	openAIAudioTranscriptionsEndpoint = "/v1/audio/transcriptions"
 	openAITranscribeAliasEndpoint     = "/transcribe"
 	openAIAudioTranscriptionsURL      = "https://api.openai.com/v1/audio/transcriptions"
+	chatgptTranscribeURL              = "https://chatgpt.com/backend-api/transcribe"
 
-	OpenAIAudioTranscriptionsDefaultModel = "gpt-4o-mini-transcribe"
-	openAIAudioTranscriptionsMaxFieldSize = 1 << 20
+	OpenAIAudioTranscriptionsDefaultModel         = "gpt-4o-mini-transcribe"
+	openAIAudioTranscriptionsMaxFieldSize         = 1 << 20
+	OpenAIAudioTranscriptionsRequiredAccountTypes = AccountTypeAPIKey + "," + AccountTypeOAuth
 )
 
 type OpenAIAudioTranscriptionsRequest struct {
@@ -186,8 +189,8 @@ func (s *OpenAIGatewayService) ForwardAudioTranscriptions(
 	if account == nil {
 		return nil, fmt.Errorf("account is required")
 	}
-	if account.Type != AccountTypeAPIKey {
-		return nil, fmt.Errorf("audio transcriptions endpoint requires an API key account")
+	if account.Platform != PlatformOpenAI || (account.Type != AccountTypeAPIKey && account.Type != AccountTypeOAuth) {
+		return nil, fmt.Errorf("audio transcriptions endpoint requires an OpenAI API key or OAuth account")
 	}
 
 	startTime := time.Now()
@@ -207,9 +210,14 @@ func (s *OpenAIGatewayService) ForwardAudioTranscriptions(
 		account.Type,
 	)
 
-	forwardBody, forwardContentType, err := rewriteOpenAIAudioTranscriptionsMultipartModel(parsed.Body, parsed.ContentType, upstreamModel)
-	if err != nil {
-		return nil, err
+	forwardBody := parsed.Body
+	forwardContentType := parsed.ContentType
+	var err error
+	if account.Type == AccountTypeAPIKey || parsed.ExplicitModel {
+		forwardBody, forwardContentType, err = rewriteOpenAIAudioTranscriptionsMultipartModel(parsed.Body, parsed.ContentType, upstreamModel)
+		if err != nil {
+			return nil, err
+		}
 	}
 	token, _, err := s.GetAccessToken(ctx, account)
 	if err != nil {
@@ -303,7 +311,9 @@ func (s *OpenAIGatewayService) buildOpenAIAudioTranscriptionsRequest(
 	token string,
 ) (*http.Request, error) {
 	targetURL := openAIAudioTranscriptionsURL
-	if baseURL := account.GetOpenAIBaseURL(); baseURL != "" {
+	if account.Type == AccountTypeOAuth {
+		targetURL = chatgptTranscribeURL
+	} else if baseURL := account.GetOpenAIBaseURL(); baseURL != "" {
 		validatedURL, err := s.validateUpstreamBaseURL(baseURL)
 		if err != nil {
 			return nil, err
@@ -315,18 +325,36 @@ func (s *OpenAIGatewayService) buildOpenAIAudioTranscriptionsRequest(
 	if err != nil {
 		return nil, err
 	}
+	if c != nil && c.Request != nil {
+		for key, values := range c.Request.Header {
+			lowerKey := strings.ToLower(key)
+			if lowerKey == "x-codex-base64" || !openaiPassthroughAllowedHeaders[lowerKey] {
+				continue
+			}
+			for _, value := range values {
+				req.Header.Add(key, value)
+			}
+		}
+	}
+	req.Header.Del("Authorization")
+	req.Header.Del("X-Api-Key")
+	req.Header.Del("X-Goog-Api-Key")
 	req.Header.Set("Authorization", "Bearer "+token)
-	for key, values := range c.Request.Header {
-		lowerKey := strings.ToLower(key)
-		if lowerKey == "x-codex-base64" || !openaiPassthroughAllowedHeaders[lowerKey] {
-			continue
+	if account.Type == AccountTypeOAuth {
+		req.Host = "chatgpt.com"
+		if chatgptAccountID := account.GetChatGPTAccountID(); chatgptAccountID != "" {
+			req.Header.Set("chatgpt-account-id", chatgptAccountID)
 		}
-		for _, value := range values {
-			req.Header.Add(key, value)
+		isCodexOfficialClient := false
+		if c != nil {
+			isCodexOfficialClient = openai.IsCodexOfficialClientByHeaders(c.GetHeader("User-Agent"), c.GetHeader("originator"))
 		}
+		req.Header.Set("originator", resolveOpenAIUpstreamOriginator(c, isCodexOfficialClient))
 	}
 	if customUA := account.GetOpenAIUserAgent(); customUA != "" {
 		req.Header.Set("User-Agent", customUA)
+	} else if account.Type == AccountTypeOAuth {
+		req.Header.Set("User-Agent", codexCLIUserAgent)
 	}
 	if strings.TrimSpace(contentType) != "" {
 		req.Header.Set("Content-Type", contentType)

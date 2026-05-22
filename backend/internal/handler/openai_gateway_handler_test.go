@@ -117,6 +117,11 @@ func TestResolveOpenAIWebSocketRequestModelResponsesRequiresTopLevelModel(t *tes
 	require.Empty(t, got)
 }
 
+func TestOpenAIWebSocketRequiredAccountTypeAllowsRealtimeOAuth(t *testing.T) {
+	require.Empty(t, openAIWebSocketRequiredAccountType(openAIWebSocketEndpointOptions{Realtime: true}))
+	require.Empty(t, openAIWebSocketRequiredAccountType(openAIWebSocketEndpointOptions{}))
+}
+
 func TestResolveOpenAIMessagesMetadataSession_DoesNotDerivePromptCacheKey(t *testing.T) {
 	body := []byte(`{"model":"claude-sonnet-4-5","metadata":{"user_id":"claude-code-session"},"messages":[{"role":"user","content":"hello"}]}`)
 

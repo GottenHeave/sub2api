@@ -80,7 +80,18 @@ func RegisterGatewayRoutes(
 			h.Gateway.Responses(c)
 		})
 		gateway.GET("/responses", h.OpenAIGateway.ResponsesWebSocket)
-		gateway.GET("/realtime", h.OpenAIGateway.RealtimeWebSocket)
+		gateway.GET("/realtime", func(c *gin.Context) {
+			if getGroupPlatform(c) != service.PlatformOpenAI {
+				c.JSON(http.StatusNotFound, gin.H{
+					"error": gin.H{
+						"type":    "not_found_error",
+						"message": "Realtime API is not supported for this platform",
+					},
+				})
+				return
+			}
+			h.OpenAIGateway.RealtimeWebSocket(c)
+		})
 		gateway.POST("/audio/transcriptions", func(c *gin.Context) {
 			if getGroupPlatform(c) != service.PlatformOpenAI {
 				c.JSON(http.StatusNotFound, gin.H{

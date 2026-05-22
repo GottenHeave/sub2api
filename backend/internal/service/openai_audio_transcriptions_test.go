@@ -209,6 +209,139 @@ func TestOpenAIGatewayServiceParseAndForwardTranscribeAlias_DefaultModelAndBase6
 	require.Equal(t, OpenAIAudioTranscriptionsDefaultModel, fields["model"])
 }
 
+func TestOpenAIGatewayServiceForwardAudioTranscriptions_OAuthUsesChatGPTTranscribe(t *testing.T) {
+	body, contentType := buildOpenAIAudioTranscriptionMultipart(t, map[string]string{
+		"language": "en",
+		"prompt":   "terms",
+	}, []byte("codex-audio"))
+	encoded := []byte(base64.StdEncoding.EncodeToString(body))
+	c, rec := newOpenAIAudioTranscriptionTestContext(http.MethodPost, "/transcribe", encoded, contentType)
+	c.Request.Header.Set("X-Codex-Base64", "1")
+	c.Request.Header.Set("User-Agent", "Codex Desktop")
+	c.Request.Header.Set("Authorization", "Bearer client-token")
+	c.Request.Header.Set("chatgpt-account-id", "client-account")
+	c.Request.Header.Set("originator", "client-originator")
+	c.Request.Header.Set("X-Api-Key", "client-api-key")
+
+	upstream := &httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"application/json"}, "x-request-id": []string{"rid_oauth_audio"}},
+		Body:       io.NopCloser(strings.NewReader(`{"text":"hello"}`)),
+	}}
+	svc := &OpenAIGatewayService{
+		cfg:          &config.Config{},
+		httpUpstream: upstream,
+	}
+	account := &Account{
+		ID:          9,
+		Name:        "oauth",
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"access_token":       "oauth-token",
+			"chatgpt_account_id": "chatgpt-account",
+		},
+		Status:      StatusActive,
+		Schedulable: true,
+	}
+
+	parsed, err := svc.ParseOpenAIAudioTranscriptionsRequest(c, encoded)
+	require.NoError(t, err)
+	require.Equal(t, OpenAIAudioTranscriptionsDefaultModel, parsed.Model)
+	require.False(t, parsed.ExplicitModel)
+
+	result, err := svc.ForwardAudioTranscriptions(context.Background(), c, account, parsed, "")
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, chatgptTranscribeURL, upstream.lastReq.URL.String())
+	require.Equal(t, "chatgpt.com", upstream.lastReq.Host)
+	require.Equal(t, "Bearer oauth-token", upstream.lastReq.Header.Get("Authorization"))
+	require.Len(t, upstream.lastReq.Header.Values("Authorization"), 1)
+	require.Equal(t, "chatgpt-account", upstream.lastReq.Header.Get("chatgpt-account-id"))
+	require.Len(t, upstream.lastReq.Header.Values("chatgpt-account-id"), 1)
+	require.Equal(t, "client-originator", upstream.lastReq.Header.Get("originator"))
+	require.Len(t, upstream.lastReq.Header.Values("originator"), 1)
+	require.Equal(t, codexCLIUserAgent, upstream.lastReq.Header.Get("User-Agent"))
+	require.Len(t, upstream.lastReq.Header.Values("User-Agent"), 1)
+	require.Empty(t, upstream.lastReq.Header.Get("X-Codex-Base64"))
+	require.Empty(t, upstream.lastReq.Header.Get("X-Api-Key"))
+
+	fields := parseMultipartFieldsForTest(t, upstream.lastBody, upstream.lastReq.Header.Get("Content-Type"))
+	require.Equal(t, "codex-audio", fields["file"])
+	require.Equal(t, "en", fields["language"])
+	require.Equal(t, "terms", fields["prompt"])
+	require.Empty(t, fields["model"])
+	require.Equal(t, OpenAIAudioTranscriptionsDefaultModel, result.Model)
+	require.Equal(t, OpenAIAudioTranscriptionsDefaultModel, result.UpstreamModel)
+}
+
+func TestOpenAIGatewayServiceForwardAudioTranscriptions_OAuthPreservesExplicitMappedModel(t *testing.T) {
+	body, contentType := buildOpenAIAudioTranscriptionMultipart(t, map[string]string{
+		"model":    "client-transcribe",
+		"language": "en",
+	}, []byte("codex-audio"))
+	c, _ := newOpenAIAudioTranscriptionTestContext(http.MethodPost, "/v1/audio/transcriptions", body, contentType)
+
+	upstream := &httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(`{"text":"hello"}`)),
+	}}
+	svc := &OpenAIGatewayService{
+		cfg:          &config.Config{},
+		httpUpstream: upstream,
+	}
+	account := &Account{
+		ID:          11,
+		Name:        "oauth",
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"access_token": "oauth-token",
+			"model_mapping": map[string]any{
+				"client-transcribe": "upstream-transcribe",
+			},
+		},
+		Status:      StatusActive,
+		Schedulable: true,
+	}
+
+	parsed, err := svc.ParseOpenAIAudioTranscriptionsRequest(c, body)
+	require.NoError(t, err)
+	require.True(t, parsed.ExplicitModel)
+	result, err := svc.ForwardAudioTranscriptions(context.Background(), c, account, parsed, "")
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	fields := parseMultipartFieldsForTest(t, upstream.lastBody, upstream.lastReq.Header.Get("Content-Type"))
+	require.Equal(t, "upstream-transcribe", fields["model"])
+	require.Equal(t, "client-transcribe", result.Model)
+	require.Equal(t, "upstream-transcribe", result.UpstreamModel)
+}
+
+func TestOpenAIGatewayServiceForwardAudioTranscriptions_RejectsUnsupportedAccountType(t *testing.T) {
+	body, contentType := buildOpenAIAudioTranscriptionMultipart(t, map[string]string{
+		"model": "client-transcribe",
+	}, []byte("fake-audio"))
+	c, _ := newOpenAIAudioTranscriptionTestContext(http.MethodPost, "/v1/audio/transcriptions", body, contentType)
+	svc := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: &httpUpstreamRecorder{}}
+	parsed, err := svc.ParseOpenAIAudioTranscriptionsRequest(c, body)
+	require.NoError(t, err)
+
+	result, err := svc.ForwardAudioTranscriptions(context.Background(), c, &Account{
+		ID:          10,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeSetupToken,
+		Credentials: map[string]any{"access_token": "setup-token"},
+	}, parsed, "")
+
+	require.Nil(t, result)
+	require.ErrorContains(t, err, "OpenAI API key or OAuth account")
+}
+
 func TestOpenAIGatewayServiceParseTranscribeAlias_InvalidBase64(t *testing.T) {
 	_, contentType := buildOpenAIAudioTranscriptionMultipart(t, map[string]string{
 		"language": "en",
