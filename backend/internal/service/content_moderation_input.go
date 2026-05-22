@@ -26,6 +26,8 @@ func ExtractContentModerationInput(protocol string, body []byte) ContentModerati
 		collectLastRoleMessage(gjson.GetBytes(body, "messages"), "user", &parts, &images)
 	case ContentModerationProtocolOpenAIResponses:
 		collectLastResponsesInput(gjson.GetBytes(body, "input"), &parts, &images)
+	case ContentModerationProtocolOpenAIRealtime:
+		collectRealtimeEventInput(gjson.ParseBytes(body), &parts, &images)
 	case ContentModerationProtocolGemini:
 		collectLastGeminiContent(gjson.GetBytes(body, "contents"), &parts, &images)
 	case ContentModerationProtocolOpenAIImages:
@@ -170,6 +172,68 @@ func responseItemHasModerationText(item gjson.Result) bool {
 		collectContentValue(item, &parts, &images)
 	}
 	return normalizeContentModerationText(strings.Join(parts, "\n")) != "" || len(images) > 0
+}
+
+func collectRealtimeEventInput(event gjson.Result, parts *[]string, images *[]string) {
+	eventType := strings.ToLower(strings.TrimSpace(event.Get("type").String()))
+	switch eventType {
+	case "session.update":
+		collectRealtimeSessionInput(event.Get("session"), parts, images)
+	case "conversation.item.create":
+		collectRealtimeConversationItemInput(event.Get("item"), parts, images)
+	case "response.create":
+		collectLastResponsesInput(event.Get("response.input"), parts, images)
+		if normalizeContentModerationText(strings.Join(*parts, "\n")) == "" && len(*images) == 0 {
+			collectLastResponsesInput(event.Get("input"), parts, images)
+		}
+	default:
+		collectRealtimeSessionInput(event.Get("session"), parts, images)
+		collectRealtimeConversationItemInput(event.Get("item"), parts, images)
+	}
+}
+
+func collectRealtimeSessionInput(session gjson.Result, parts *[]string, images *[]string) {
+	if !session.IsObject() {
+		return
+	}
+	addModerationText(parts, session.Get("instructions").String())
+}
+
+func collectRealtimeConversationItemInput(item gjson.Result, parts *[]string, images *[]string) {
+	if !item.IsObject() {
+		return
+	}
+	role := strings.ToLower(strings.TrimSpace(item.Get("role").String()))
+	if role != "" && role != "user" {
+		return
+	}
+	collectRealtimeContentValue(item.Get("content"), parts, images)
+}
+
+func collectRealtimeContentValue(value gjson.Result, parts *[]string, images *[]string) {
+	switch {
+	case !value.Exists():
+		return
+	case value.Type == gjson.String:
+		addModerationText(parts, value.String())
+	case value.IsArray():
+		value.ForEach(func(_, item gjson.Result) bool {
+			collectRealtimeContentValue(item, parts, images)
+			return true
+		})
+	case value.IsObject():
+		typ := strings.ToLower(strings.TrimSpace(value.Get("type").String()))
+		switch typ {
+		case "image_url", "input_image", "image":
+			collectContentValue(value, parts, images)
+			return
+		}
+		addModerationText(parts, value.Get("text").String())
+		addModerationText(parts, value.Get("transcript").String())
+		if value.Get("content").Exists() {
+			collectRealtimeContentValue(value.Get("content"), parts, images)
+		}
+	}
 }
 
 func collectLastGeminiContent(contents gjson.Result, parts *[]string, images *[]string) {

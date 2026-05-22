@@ -712,6 +712,57 @@ func TestExtractContentModerationInput_OpenAIResponsesCodexPayloadUsesLastUserMe
 	require.NotContains(t, input.Text, "first user prompt")
 }
 
+func TestExtractContentModerationInput_OpenAIRealtimeSessionUpdateExtractsInstructions(t *testing.T) {
+	body := []byte(`{
+		"type":"session.update",
+		"session":{
+			"model":"gpt-realtime",
+			"instructions":"moderate these realtime instructions"
+		}
+	}`)
+
+	input := ExtractContentModerationInput(ContentModerationProtocolOpenAIRealtime, body)
+
+	require.Equal(t, "moderate these realtime instructions", input.Text)
+	require.Empty(t, input.Images)
+}
+
+func TestExtractContentModerationInput_OpenAIRealtimeConversationItemExtractsContent(t *testing.T) {
+	body := []byte(`{
+		"type":"conversation.item.create",
+		"item":{
+			"type":"message",
+			"role":"user",
+			"content":[
+				{"type":"input_text","text":"moderate realtime content text"},
+				{"type":"input_audio","transcript":"moderate realtime transcript"}
+			]
+		}
+	}`)
+
+	input := ExtractContentModerationInput(ContentModerationProtocolOpenAIRealtime, body)
+
+	require.Equal(t, "moderate realtime content text moderate realtime transcript", input.Text)
+	require.Empty(t, input.Images)
+}
+
+func TestExtractContentModerationInput_OpenAIResponsesDoesNotUseRealtimeFields(t *testing.T) {
+	body := []byte(`{
+		"type":"session.update",
+		"session":{"instructions":"responses extractor must ignore realtime instructions"}
+	}`)
+
+	input := ExtractContentModerationInput(ContentModerationProtocolOpenAIResponses, body)
+
+	require.Empty(t, input.Text)
+	require.Empty(t, input.Images)
+}
+
+func TestContentModerationProtocolRealtimeEndpointUsesRealtimeExtractor(t *testing.T) {
+	require.Equal(t, ContentModerationProtocolOpenAIRealtime, normalizeContentModerationProtocol(ContentModerationProtocolOpenAIResponses, "/v1/realtime"))
+	require.Equal(t, ContentModerationProtocolOpenAIResponses, normalizeContentModerationProtocol(ContentModerationProtocolOpenAIResponses, "/v1/responses"))
+}
+
 func TestContentModerationCheck_OpenAIResponsesRecordsNonHitForCodexPayload(t *testing.T) {
 	var moderationRequest moderationAPIRequest
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

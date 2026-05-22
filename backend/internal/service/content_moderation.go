@@ -46,6 +46,7 @@ const (
 
 	ContentModerationProtocolAnthropicMessages = "anthropic_messages"
 	ContentModerationProtocolOpenAIResponses   = "openai_responses"
+	ContentModerationProtocolOpenAIRealtime    = "openai_realtime"
 	ContentModerationProtocolOpenAIChat        = "openai_chat_completions"
 	ContentModerationProtocolGemini            = "gemini"
 	ContentModerationProtocolOpenAIImages      = "openai_images"
@@ -690,6 +691,7 @@ func (s *ContentModerationService) TestAPIKeys(ctx context.Context, input TestCo
 
 func (s *ContentModerationService) Check(ctx context.Context, input ContentModerationCheckInput) (*ContentModerationDecision, error) {
 	allow := &ContentModerationDecision{Allowed: true, Action: ContentModerationActionAllow}
+	input.Protocol = normalizeContentModerationProtocol(input.Protocol, input.Endpoint)
 	if s == nil || s.settingRepo == nil || s.repo == nil {
 		slog.Info("content_moderation.skip_unavailable",
 			"user_id", input.UserID,
@@ -887,6 +889,13 @@ func (s *ContentModerationService) Check(ctx context.Context, input ContentModer
 	}
 
 	return s.checkSync(ctx, input, cfg, content, hashText, nil, true), nil
+}
+
+func normalizeContentModerationProtocol(protocol string, endpoint string) string {
+	if protocol == ContentModerationProtocolOpenAIResponses && strings.EqualFold(strings.TrimSpace(endpoint), "/v1/realtime") {
+		return ContentModerationProtocolOpenAIRealtime
+	}
+	return protocol
 }
 
 func (s *ContentModerationService) checkSync(ctx context.Context, input ContentModerationCheckInput, cfg *ContentModerationConfig, content ContentModerationInput, hashText string, queueDelay *int, allowBlock bool) *ContentModerationDecision {
