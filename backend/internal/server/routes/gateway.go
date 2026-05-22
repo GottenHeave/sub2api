@@ -81,6 +81,18 @@ func RegisterGatewayRoutes(
 		})
 		gateway.GET("/responses", h.OpenAIGateway.ResponsesWebSocket)
 		gateway.GET("/realtime", h.OpenAIGateway.RealtimeWebSocket)
+		gateway.POST("/audio/transcriptions", func(c *gin.Context) {
+			if getGroupPlatform(c) != service.PlatformOpenAI {
+				c.JSON(http.StatusNotFound, gin.H{
+					"error": gin.H{
+						"type":    "not_found_error",
+						"message": "Audio transcriptions API is not supported for this platform",
+					},
+				})
+				return
+			}
+			h.OpenAIGateway.AudioTranscriptions(c)
+		})
 		// OpenAI Chat Completions API: auto-route based on group platform
 		gateway.POST("/chat/completions", func(c *gin.Context) {
 			if getGroupPlatform(c) == service.PlatformOpenAI {
@@ -179,6 +191,18 @@ func RegisterGatewayRoutes(
 			return
 		}
 		h.OpenAIGateway.Images(c)
+	})
+	r.POST("/transcribe", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
+		if getGroupPlatform(c) != service.PlatformOpenAI {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": gin.H{
+					"type":    "not_found_error",
+					"message": "Audio transcriptions API is not supported for this platform",
+				},
+			})
+			return
+		}
+		h.OpenAIGateway.AudioTranscriptions(c)
 	})
 
 	// Antigravity 模型列表
