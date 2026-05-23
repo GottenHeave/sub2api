@@ -127,6 +127,24 @@ func TestOpenAIGatewayHandlerAudioTranscriptions_SameAccountRetry(t *testing.T) 
 	}
 }
 
+func TestOpenAIGatewayHandlerAudioTranscriptions_OAuthServerErrorSameAccountRetry(t *testing.T) {
+	upstream := &audioTranscriptionHandlerUpstream{statuses: []int{http.StatusInternalServerError, http.StatusOK}}
+	handler := newAudioTranscriptionHandlerForTest(t, upstream, []service.Account{
+		newAudioTranscriptionHandlerOAuthAccount(9),
+	})
+	c, rec := newAudioTranscriptionHandlerContext(t, "/transcribe")
+
+	handler.AudioTranscriptions(c)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, []int64{9, 9}, upstream.accountIDs)
+	require.Equal(t, []string{
+		"https://chatgpt.com/backend-api/transcribe",
+		"https://chatgpt.com/backend-api/transcribe",
+	}, upstream.urls)
+	require.JSONEq(t, `{"text":"ok"}`, rec.Body.String())
+}
+
 func TestOpenAIGatewayHandlerAudioTranscriptions_AccountSwitch(t *testing.T) {
 	tests := []struct {
 		name   string

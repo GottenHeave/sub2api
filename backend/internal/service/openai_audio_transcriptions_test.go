@@ -531,14 +531,15 @@ func TestOpenAIGatewayServiceForwardAudioTranscriptions_FailoverStatuses(t *test
 
 func TestOpenAIGatewayServiceForwardAudioTranscriptions_OAuthFailoverStatuses(t *testing.T) {
 	tests := []struct {
-		name   string
-		status int
+		name                 string
+		status               int
+		retryableSameAccount bool
 	}{
 		{name: "401", status: http.StatusUnauthorized},
 		{name: "403", status: http.StatusForbidden},
 		{name: "429", status: http.StatusTooManyRequests},
-		{name: "500", status: http.StatusInternalServerError},
-		{name: "503", status: http.StatusServiceUnavailable},
+		{name: "500", status: http.StatusInternalServerError, retryableSameAccount: true},
+		{name: "503", status: http.StatusServiceUnavailable, retryableSameAccount: true},
 	}
 
 	for _, tt := range tests {
@@ -562,6 +563,7 @@ func TestOpenAIGatewayServiceForwardAudioTranscriptions_OAuthFailoverStatuses(t 
 			var failoverErr *UpstreamFailoverError
 			require.ErrorAs(t, err, &failoverErr)
 			require.Equal(t, tt.status, failoverErr.StatusCode)
+			require.Equal(t, tt.retryableSameAccount, failoverErr.RetryableOnSameAccount)
 			require.Equal(t, chatgptTranscribeURL, upstream.lastReq.URL.String())
 			require.Empty(t, rec.Body.String(), "failover response should not be written before handler retry logic")
 		})

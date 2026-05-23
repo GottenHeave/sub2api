@@ -81,6 +81,20 @@ func TestHandle429_FallbackUsesDBSeconds(t *testing.T) {
 	require.True(t, !accountRepo.lastRateLimitReset.Before(before.Add(12*time.Second)) && !accountRepo.lastRateLimitReset.After(after.Add(12*time.Second)))
 }
 
+func TestHandle429_OpenAITranscribeRetryAfterSeconds(t *testing.T) {
+	accountRepo := &rateLimit429AccountRepoStub{}
+	svc := NewRateLimitService(accountRepo, nil, &config.Config{}, nil, nil)
+
+	account := &Account{ID: 45, Platform: PlatformOpenAI, Type: AccountTypeOAuth}
+	before := time.Now()
+	svc.handle429(context.Background(), account, http.Header{}, []byte(`{"detail":{"retry_after_seconds":30}}`))
+	after := time.Now()
+
+	require.Equal(t, 1, accountRepo.rateLimitCalls)
+	require.Equal(t, int64(45), accountRepo.lastRateLimitID)
+	require.True(t, !accountRepo.lastRateLimitReset.Before(before.Add(29*time.Second)) && !accountRepo.lastRateLimitReset.After(after.Add(30*time.Second)))
+}
+
 func TestHandle429_FallbackDisabledSkipsLocalMark(t *testing.T) {
 	accountRepo := &rateLimit429AccountRepoStub{}
 	settingRepo := newMockSettingRepo()
