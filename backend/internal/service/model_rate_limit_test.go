@@ -198,6 +198,29 @@ func TestIsModelRateLimited_Antigravity_ThinkingAffectsModelKey(t *testing.T) {
 	}
 }
 
+func TestIsModelRateLimited_ExtraScopeOnlyAppliesWhenContextIncludesScope(t *testing.T) {
+	future := time.Now().Add(10 * time.Minute).Format(time.RFC3339)
+	scope := OpenAIAudioTranscriptionsModelRateLimitScope(OpenAIAudioTranscriptionsDefaultModel)
+	account := &Account{
+		Extra: map[string]any{
+			modelRateLimitsKey: map[string]any{
+				scope: map[string]any{
+					"rate_limit_reset_at": future,
+				},
+			},
+		},
+	}
+
+	if account.isModelRateLimitedWithContext(context.Background(), OpenAIAudioTranscriptionsDefaultModel) {
+		t.Fatalf("expected plain model selection to ignore audio transcription API scope")
+	}
+
+	ctx := WithModelRateLimitExtraScopes(context.Background(), scope)
+	if !account.isModelRateLimitedWithContext(ctx, OpenAIAudioTranscriptionsDefaultModel) {
+		t.Fatalf("expected audio transcription scope to rate limit only scoped requests")
+	}
+}
+
 func TestGetModelRateLimitRemainingTime(t *testing.T) {
 	now := time.Now()
 	future10m := now.Add(10 * time.Minute).Format(time.RFC3339)
