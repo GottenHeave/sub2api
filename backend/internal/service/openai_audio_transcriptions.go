@@ -282,7 +282,7 @@ func (s *OpenAIGatewayService) ForwardAudioTranscriptions(
 			return nil, &UpstreamFailoverError{
 				StatusCode:             resp.StatusCode,
 				ResponseBody:           respBody,
-				RetryableOnSameAccount: account.IsPoolMode() && isPoolModeRetryableStatus(resp.StatusCode),
+				RetryableOnSameAccount: isOpenAIAudioTranscriptionSameAccountRetryable(account, resp.StatusCode),
 			}
 		}
 		return s.handleErrorResponse(ctx, resp, c, account, forwardBody)
@@ -313,6 +313,16 @@ func (s *OpenAIGatewayService) ForwardAudioTranscriptions(
 		ResponseHeaders: resp.Header.Clone(),
 		Duration:        time.Since(startTime),
 	}, nil
+}
+
+func isOpenAIAudioTranscriptionSameAccountRetryable(account *Account, statusCode int) bool {
+	if account == nil {
+		return false
+	}
+	if account.Type == AccountTypeOAuth && statusCode >= 500 {
+		return true
+	}
+	return account.IsPoolMode() && isPoolModeRetryableStatus(statusCode)
 }
 
 func estimateOpenAIAudioTranscriptionUsage(parsed *OpenAIAudioTranscriptionsRequest, responseBody []byte) OpenAIUsage {

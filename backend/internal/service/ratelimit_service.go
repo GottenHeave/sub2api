@@ -1173,6 +1173,10 @@ func parseOpenAIRateLimitResetTime(body []byte) *int64 {
 		return nil
 	}
 
+	if resetAt := parseOpenAIRetryAfterSeconds(parsed["detail"]); resetAt != nil {
+		return resetAt
+	}
+
 	errObj, ok := parsed["error"].(map[string]any)
 	if !ok {
 		return nil
@@ -1208,6 +1212,35 @@ func parseOpenAIRateLimitResetTime(body []byte) *int64 {
 	}
 
 	return nil
+}
+
+func parseOpenAIRetryAfterSeconds(raw any) *int64 {
+	detail, ok := raw.(map[string]any)
+	if !ok {
+		return nil
+	}
+	rawSeconds, ok := detail["retry_after_seconds"]
+	if !ok {
+		return nil
+	}
+	var seconds int64
+	switch v := rawSeconds.(type) {
+	case float64:
+		seconds = int64(v)
+	case string:
+		parsed, err := strconv.ParseInt(strings.TrimSpace(v), 10, 64)
+		if err != nil {
+			return nil
+		}
+		seconds = parsed
+	default:
+		return nil
+	}
+	if seconds <= 0 {
+		return nil
+	}
+	ts := time.Now().Unix() + seconds
+	return &ts
 }
 
 func parseOpenAIRateLimitPlanType(body []byte) string {
