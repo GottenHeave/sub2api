@@ -1037,6 +1037,84 @@ func TestOpenAIGatewayService_SelectAccountWithSchedulerForAccountType_MultipleT
 	}
 }
 
+func TestOpenAIGatewayService_SelectAccountWithSchedulerForAccountType_AudioScopeOnlySkipsAudio(t *testing.T) {
+	resetOpenAIAdvancedSchedulerSettingCacheForTest()
+
+	groupID := int64(1015)
+	model := OpenAIAudioTranscriptionsDefaultModel
+	scope := OpenAIAudioTranscriptionsModelRateLimitScope(model)
+	future := time.Now().Add(30 * time.Second).Format(time.RFC3339)
+	accounts := []Account{
+		{
+			ID:          2601,
+			Platform:    PlatformOpenAI,
+			Type:        AccountTypeOAuth,
+			Status:      StatusActive,
+			Schedulable: true,
+			Concurrency: 1,
+			Priority:    0,
+			Extra: map[string]any{
+				modelRateLimitsKey: map[string]any{
+					scope: map[string]any{
+						"rate_limit_reset_at": future,
+					},
+				},
+			},
+		},
+	}
+
+	svc := &OpenAIGatewayService{
+		accountRepo:        schedulerTestOpenAIAccountRepo{accounts: accounts},
+		cache:              &schedulerTestGatewayCache{},
+		cfg:                &config.Config{},
+		rateLimitService:   newOpenAIAdvancedSchedulerRateLimitService("true"),
+		concurrencyService: NewConcurrencyService(schedulerTestConcurrencyCache{}),
+	}
+
+	audioCtx := WithModelRateLimitExtraScopes(context.Background(), scope)
+	audioSelection, _, err := svc.SelectAccountWithSchedulerForAccountType(
+		audioCtx,
+		&groupID,
+		"",
+		"",
+		model,
+		nil,
+		OpenAIUpstreamTransportHTTPSSE,
+		OpenAIAudioTranscriptionsRequiredAccountTypes,
+		false,
+	)
+	require.Error(t, err)
+	require.Nil(t, audioSelection)
+
+	plainSelection, _, err := svc.SelectAccountWithSchedulerForAccountType(
+		context.Background(),
+		&groupID,
+		"",
+		"",
+		model,
+		nil,
+		OpenAIUpstreamTransportHTTPSSE,
+		OpenAIAudioTranscriptionsRequiredAccountTypes,
+		false,
+	)
+	require.NoError(t, err)
+	require.NotNil(t, plainSelection)
+	require.NotNil(t, plainSelection.Account)
+	require.Equal(t, int64(2601), plainSelection.Account.ID)
+	if plainSelection.ReleaseFunc != nil {
+		plainSelection.ReleaseFunc()
+	}
+}
+
+func TestOpenAIAudioTranscriptionsModelRateLimitScopeIfModel_BlankDoesNotDefault(t *testing.T) {
+	require.Empty(t, OpenAIAudioTranscriptionsModelRateLimitScopeIfModel(""))
+	require.Equal(
+		t,
+		OpenAIAudioTranscriptionsModelRateLimitScope("custom-transcribe"),
+		OpenAIAudioTranscriptionsModelRateLimitScopeIfModel("custom-transcribe"),
+	)
+}
+
 func TestOpenAIGatewayService_SelectAccountWithScheduler_LoadBalanceTopKFallback(t *testing.T) {
 	ctx := context.Background()
 	groupID := int64(11)

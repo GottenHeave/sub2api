@@ -13,8 +13,10 @@ import (
 	"net/textproto"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
@@ -47,6 +49,187 @@ func newOpenAIAudioTranscriptionTestContext(method, path string, body []byte, co
 	}
 	c.Request = req
 	return c, rec
+}
+
+type audioTranscriptionRateLimitAccountRepoStub struct {
+	rateLimitCalls        int
+	modelRateLimitCalls   int
+	lastModelRateLimitID  int64
+	lastModelRateLimitKey string
+	lastModelRateLimitAt  time.Time
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) SetRateLimited(_ context.Context, _ int64, _ time.Time) error {
+	r.rateLimitCalls++
+	return nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) SetModelRateLimit(_ context.Context, id int64, scope string, resetAt time.Time) error {
+	r.modelRateLimitCalls++
+	r.lastModelRateLimitID = id
+	r.lastModelRateLimitKey = scope
+	r.lastModelRateLimitAt = resetAt
+	return nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) Create(context.Context, *Account) error {
+	return nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) GetByID(context.Context, int64) (*Account, error) {
+	return nil, nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) GetByIDs(context.Context, []int64) ([]*Account, error) {
+	return nil, nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) ExistsByID(context.Context, int64) (bool, error) {
+	return false, nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) GetByCRSAccountID(context.Context, string) (*Account, error) {
+	return nil, nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) FindByExtraField(context.Context, string, any) ([]Account, error) {
+	return nil, nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) ListCRSAccountIDs(context.Context) (map[string]int64, error) {
+	return nil, nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) Update(context.Context, *Account) error {
+	return nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) Delete(context.Context, int64) error {
+	return nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) List(context.Context, pagination.PaginationParams) ([]Account, *pagination.PaginationResult, error) {
+	return nil, nil, nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) ListWithFilters(context.Context, pagination.PaginationParams, string, string, string, string, int64, string) ([]Account, *pagination.PaginationResult, error) {
+	return nil, nil, nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) ListByGroup(context.Context, int64) ([]Account, error) {
+	return nil, nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) ListActive(context.Context) ([]Account, error) {
+	return nil, nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) ListByPlatform(context.Context, string) ([]Account, error) {
+	return nil, nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) UpdateLastUsed(context.Context, int64) error {
+	return nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) BatchUpdateLastUsed(context.Context, map[int64]time.Time) error {
+	return nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) SetError(context.Context, int64, string) error {
+	return nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) ClearError(context.Context, int64) error {
+	return nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) SetSchedulable(context.Context, int64, bool) error {
+	return nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) AutoPauseExpiredAccounts(context.Context, time.Time) (int64, error) {
+	return 0, nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) BindGroups(context.Context, int64, []int64) error {
+	return nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) ListSchedulable(context.Context) ([]Account, error) {
+	return nil, nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) ListSchedulableByGroupID(context.Context, int64) ([]Account, error) {
+	return nil, nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) ListSchedulableByPlatform(context.Context, string) ([]Account, error) {
+	return nil, nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) ListSchedulableByGroupIDAndPlatform(context.Context, int64, string) ([]Account, error) {
+	return nil, nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) ListSchedulableByPlatforms(context.Context, []string) ([]Account, error) {
+	return nil, nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) ListSchedulableByGroupIDAndPlatforms(context.Context, int64, []string) ([]Account, error) {
+	return nil, nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) ListSchedulableUngroupedByPlatform(context.Context, string) ([]Account, error) {
+	return nil, nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) ListSchedulableUngroupedByPlatforms(context.Context, []string) ([]Account, error) {
+	return nil, nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) SetOverloaded(context.Context, int64, time.Time) error {
+	return nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) SetTempUnschedulable(context.Context, int64, time.Time, string) error {
+	return nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) ClearTempUnschedulable(context.Context, int64) error {
+	return nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) ClearRateLimit(context.Context, int64) error {
+	return nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) ClearAntigravityQuotaScopes(context.Context, int64) error {
+	return nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) ClearModelRateLimits(context.Context, int64) error {
+	return nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) UpdateSessionWindow(context.Context, int64, *time.Time, *time.Time, string) error {
+	return nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) UpdateExtra(context.Context, int64, map[string]any) error {
+	return nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) BulkUpdate(context.Context, []int64, AccountBulkUpdate) (int64, error) {
+	return 0, nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) IncrementQuotaUsed(context.Context, int64, float64) error {
+	return nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) ResetQuotaUsed(context.Context, int64) error {
+	return nil
 }
 
 func parseMultipartFieldsForTest(t *testing.T, body []byte, contentType string) map[string]string {
@@ -533,11 +716,13 @@ func TestOpenAIGatewayServiceForwardAudioTranscriptions_OAuthFailoverStatuses(t 
 	tests := []struct {
 		name                 string
 		status               int
+		responseBody         string
 		retryableSameAccount bool
+		wantModelRateLimit   bool
 	}{
 		{name: "401", status: http.StatusUnauthorized},
 		{name: "403", status: http.StatusForbidden},
-		{name: "429", status: http.StatusTooManyRequests},
+		{name: "429", status: http.StatusTooManyRequests, responseBody: `{"detail":"Transcription is temporarily unavailable. Please try again shortly.","retry_after_seconds":30}`, wantModelRateLimit: true},
 		{name: "500", status: http.StatusInternalServerError, retryableSameAccount: true},
 		{name: "503", status: http.StatusServiceUnavailable, retryableSameAccount: true},
 	}
@@ -548,10 +733,18 @@ func TestOpenAIGatewayServiceForwardAudioTranscriptions_OAuthFailoverStatuses(t 
 				"language": "en",
 			}, []byte("fake-audio"))
 			c, rec := newOpenAIAudioTranscriptionTestContext(http.MethodPost, "/transcribe", body, contentType)
-			upstream := &httpUpstreamRecorder{resp: newOpenAIAudioTranscriptionResponse(tt.status, `{"error":{"message":"temporary upstream failure"}}`)}
+			responseBody := tt.responseBody
+			if responseBody == "" {
+				responseBody = `{"error":{"message":"temporary upstream failure"}}`
+			}
+			upstream := &httpUpstreamRecorder{resp: newOpenAIAudioTranscriptionResponse(tt.status, responseBody)}
+			accountRepo := &audioTranscriptionRateLimitAccountRepoStub{}
+			rateLimitService := NewRateLimitService(accountRepo, nil, &config.Config{}, nil, nil)
 			svc := &OpenAIGatewayService{
-				cfg:          &config.Config{},
-				httpUpstream: upstream,
+				accountRepo:      accountRepo,
+				cfg:              &config.Config{},
+				httpUpstream:     upstream,
+				rateLimitService: rateLimitService,
 			}
 			account := openAIAudioTranscriptionOAuthAccount(8)
 
@@ -566,6 +759,15 @@ func TestOpenAIGatewayServiceForwardAudioTranscriptions_OAuthFailoverStatuses(t 
 			require.Equal(t, tt.retryableSameAccount, failoverErr.RetryableOnSameAccount)
 			require.Equal(t, chatgptTranscribeURL, upstream.lastReq.URL.String())
 			require.Empty(t, rec.Body.String(), "failover response should not be written before handler retry logic")
+			if tt.wantModelRateLimit {
+				require.Zero(t, accountRepo.rateLimitCalls)
+				require.Equal(t, 1, accountRepo.modelRateLimitCalls)
+				require.Equal(t, int64(8), accountRepo.lastModelRateLimitID)
+				require.Equal(t, OpenAIAudioTranscriptionsModelRateLimitScope(OpenAIAudioTranscriptionsDefaultModel), accountRepo.lastModelRateLimitKey)
+				require.True(t, accountRepo.lastModelRateLimitAt.After(time.Now().Add(20*time.Second)))
+			} else {
+				require.Zero(t, accountRepo.modelRateLimitCalls)
+			}
 		})
 	}
 }

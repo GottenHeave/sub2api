@@ -97,6 +97,11 @@ func (h *OpenAIGatewayHandler) AudioTranscriptions(c *gin.Context) {
 	}
 
 	sessionHash := parsed.StickySessionSeed()
+	routingCtx := service.WithModelRateLimitExtraScopes(
+		c.Request.Context(),
+		service.OpenAIAudioTranscriptionsModelRateLimitScopeIfModel(channelMapping.MappedModel),
+		service.OpenAIAudioTranscriptionsModelRateLimitScopeIfModel(parsed.Model),
+	)
 	maxAccountSwitches := h.maxAccountSwitches
 	switchCount := 0
 	failedAccountIDs := make(map[int64]struct{})
@@ -105,7 +110,7 @@ func (h *OpenAIGatewayHandler) AudioTranscriptions(c *gin.Context) {
 
 	for {
 		selection, scheduleDecision, err := h.gatewayService.SelectAccountWithSchedulerForAccountType(
-			c.Request.Context(),
+			routingCtx,
 			apiKey.GroupID,
 			"",
 			sessionHash,
@@ -157,7 +162,7 @@ func (h *OpenAIGatewayHandler) AudioTranscriptions(c *gin.Context) {
 
 		service.SetOpsLatencyMs(c, service.OpsRoutingLatencyMsKey, time.Since(routingStart).Milliseconds())
 		forwardStart := time.Now()
-		result, err := h.gatewayService.ForwardAudioTranscriptions(c.Request.Context(), c, account, parsed, channelMapping.MappedModel)
+		result, err := h.gatewayService.ForwardAudioTranscriptions(routingCtx, c, account, parsed, channelMapping.MappedModel)
 		forwardDurationMs := time.Since(forwardStart).Milliseconds()
 		if accountReleaseFunc != nil {
 			accountReleaseFunc()

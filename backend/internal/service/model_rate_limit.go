@@ -8,6 +8,33 @@ import (
 
 const modelRateLimitsKey = "model_rate_limits"
 
+type modelRateLimitExtraScopesContextKey struct{}
+
+func WithModelRateLimitExtraScopes(ctx context.Context, scopes ...string) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	cleaned := make([]string, 0, len(scopes))
+	for _, scope := range scopes {
+		scope = strings.TrimSpace(scope)
+		if scope != "" {
+			cleaned = append(cleaned, scope)
+		}
+	}
+	if len(cleaned) == 0 {
+		return ctx
+	}
+	return context.WithValue(ctx, modelRateLimitExtraScopesContextKey{}, cleaned)
+}
+
+func modelRateLimitExtraScopesFromContext(ctx context.Context) []string {
+	if ctx == nil {
+		return nil
+	}
+	scopes, _ := ctx.Value(modelRateLimitExtraScopesContextKey{}).([]string)
+	return scopes
+}
+
 // isRateLimitActiveForKey 检查指定 key 的限流是否生效
 func (a *Account) isRateLimitActiveForKey(key string) bool {
 	resetAt := a.modelRateLimitResetAt(key)
@@ -40,7 +67,15 @@ func (a *Account) isModelRateLimitedWithContext(ctx context.Context, requestedMo
 	if modelKey == "" {
 		return false
 	}
-	return a.isRateLimitActiveForKey(modelKey)
+	if a.isRateLimitActiveForKey(modelKey) {
+		return true
+	}
+	for _, scope := range modelRateLimitExtraScopesFromContext(ctx) {
+		if a.isRateLimitActiveForKey(scope) {
+			return true
+		}
+	}
+	return false
 }
 
 // GetModelRateLimitRemainingTime 获取模型限流剩余时间
@@ -62,7 +97,13 @@ func (a *Account) GetModelRateLimitRemainingTimeWithContext(ctx context.Context,
 	if modelKey == "" {
 		return 0
 	}
-	return a.getRateLimitRemainingForKey(modelKey)
+	remaining := a.getRateLimitRemainingForKey(modelKey)
+	for _, scope := range modelRateLimitExtraScopesFromContext(ctx) {
+		if scopeRemaining := a.getRateLimitRemainingForKey(scope); scopeRemaining > remaining {
+			remaining = scopeRemaining
+		}
+	}
+	return remaining
 }
 
 func resolveFinalAntigravityModelKey(ctx context.Context, account *Account, requestedModel string) string {

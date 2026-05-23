@@ -19,6 +19,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
+	"go.uber.org/zap"
 )
 
 const (
@@ -28,6 +29,7 @@ const (
 	chatgptTranscribeURL              = "https://chatgpt.com/backend-api/transcribe"
 
 	OpenAIAudioTranscriptionsDefaultModel         = "gpt-4o-mini-transcribe"
+	openAIAudioTranscriptionsModelRateLimitPrefix = "openai_audio_transcriptions:"
 	openAIAudioTranscriptionsMaxFieldSize         = 1 << 20
 	OpenAIAudioTranscriptionsRequiredAccountTypes = AccountTypeAPIKey + "," + AccountTypeOAuth
 )
@@ -59,6 +61,22 @@ func (r *OpenAIAudioTranscriptionsRequest) StickySessionSeed() string {
 		strings.TrimSpace(r.Language),
 		strings.TrimSpace(r.FileName),
 	}, "|")
+}
+
+func OpenAIAudioTranscriptionsModelRateLimitScope(model string) string {
+	model = strings.TrimSpace(model)
+	if model == "" {
+		model = OpenAIAudioTranscriptionsDefaultModel
+	}
+	return openAIAudioTranscriptionsModelRateLimitPrefix + model
+}
+
+func OpenAIAudioTranscriptionsModelRateLimitScopeIfModel(model string) string {
+	model = strings.TrimSpace(model)
+	if model == "" {
+		return ""
+	}
+	return OpenAIAudioTranscriptionsModelRateLimitScope(model)
 }
 
 func (s *OpenAIGatewayService) ParseOpenAIAudioTranscriptionsRequest(c *gin.Context, body []byte) (*OpenAIAudioTranscriptionsRequest, error) {
@@ -277,7 +295,7 @@ func (s *OpenAIGatewayService) ForwardAudioTranscriptions(
 				Message:            upstreamMsg,
 			})
 			if s.rateLimitService != nil {
-				s.handleFailoverSideEffects(ctx, resp, account)
+				s.handleOpenAIAudioTranscriptionFailoverSideEffects(ctx, resp, account, requestModel, respBody)
 			}
 			return nil, &UpstreamFailoverError{
 				StatusCode:             resp.StatusCode,
@@ -313,6 +331,31 @@ func (s *OpenAIGatewayService) ForwardAudioTranscriptions(
 		ResponseHeaders: resp.Header.Clone(),
 		Duration:        time.Since(startTime),
 	}, nil
+}
+
+func (s *OpenAIGatewayService) handleOpenAIAudioTranscriptionFailoverSideEffects(ctx context.Context, resp *http.Response, account *Account, requestModel string, respBody []byte) {
+	if s == nil || s.rateLimitService == nil || resp == nil || account == nil {
+		return
+	}
+	if account.Type == AccountTypeOAuth && resp.StatusCode == http.StatusTooManyRequests {
+		if resetAt := parseOpenAIAudioTranscriptionRetryAfterSeconds(respBody); resetAt != nil && s.accountRepo != nil {
+			scope := OpenAIAudioTranscriptionsModelRateLimitScope(requestModel)
+			resetTime := time.Unix(*resetAt, 0)
+			if err := s.accountRepo.SetModelRateLimit(ctx, account.ID, scope, resetTime); err != nil {
+				logger.L().Warn("openai.audio_transcriptions.model_rate_limit_set_failed",
+					zap.Int64("account_id", account.ID),
+					zap.String("scope", scope),
+					zap.Error(err),
+				)
+			}
+			return
+		}
+	}
+	s.handleFailoverSideEffects(ctx, resp, account)
+}
+
+func parseOpenAIAudioTranscriptionRetryAfterSeconds(body []byte) *int64 {
+	return parseOpenAIRetryAfterSecondsFromBody(body)
 }
 
 func isOpenAIAudioTranscriptionSameAccountRetryable(account *Account, statusCode int) bool {
