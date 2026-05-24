@@ -393,6 +393,62 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_DefaultDisabled_Require
 	require.Equal(t, openAIAccountScheduleLayerLoadBalance, decision.Layer)
 }
 
+func TestOpenAIGatewayService_SelectAccountWithSchedulerForAudioTranscriptions_FallbackSelectionModel(t *testing.T) {
+	resetOpenAIAdvancedSchedulerSettingCacheForTest()
+
+	ctx := context.Background()
+	groupID := int64(10110)
+	account := Account{
+		ID:          36031,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeAPIKey,
+		Status:      StatusActive,
+		Schedulable: true,
+		Concurrency: 1,
+		Priority:    0,
+		Credentials: map[string]any{
+			"model_mapping": map[string]any{
+				OpenAIAudioTranscriptionsDefaultModel: OpenAIAudioTranscriptionsDefaultModel,
+			},
+		},
+	}
+	cfg := &config.Config{}
+	cfg.Gateway.Scheduling.LoadBatchEnabled = false
+	svc := &OpenAIGatewayService{
+		accountRepo:        schedulerTestOpenAIAccountRepo{accounts: []Account{account}},
+		cache:              &schedulerTestGatewayCache{},
+		cfg:                cfg,
+		concurrencyService: NewConcurrencyService(schedulerTestConcurrencyCache{}),
+	}
+
+	selection, _, err := svc.SelectAccountWithSchedulerForAccountType(
+		ctx,
+		&groupID,
+		"",
+		"",
+		"whisper-1",
+		nil,
+		OpenAIUpstreamTransportHTTPSSE,
+		OpenAIAudioTranscriptionsRequiredAccountTypes,
+		false,
+	)
+	require.ErrorContains(t, err, "no available OpenAI accounts supporting model: whisper-1")
+	require.Nil(t, selection)
+
+	selection, _, selectionModel, err := svc.SelectAccountWithSchedulerForAudioTranscriptions(
+		ctx,
+		&groupID,
+		"",
+		"whisper-1",
+		nil,
+	)
+	require.NoError(t, err)
+	require.NotNil(t, selection)
+	require.NotNil(t, selection.Account)
+	require.Equal(t, account.ID, selection.Account.ID)
+	require.Equal(t, OpenAIAudioTranscriptionsDefaultModel, selectionModel)
+}
+
 func TestOpenAIGatewayService_SelectAccountWithScheduler_EnabledUsesAdvancedPreviousResponseRouting(t *testing.T) {
 	resetOpenAIAdvancedSchedulerSettingCacheForTest()
 

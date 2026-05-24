@@ -109,16 +109,12 @@ func (h *OpenAIGatewayHandler) AudioTranscriptions(c *gin.Context) {
 	var lastFailoverErr *service.UpstreamFailoverError
 
 	for {
-		selection, scheduleDecision, err := h.gatewayService.SelectAccountWithSchedulerForAccountType(
+		selection, scheduleDecision, selectionModel, err := h.gatewayService.SelectAccountWithSchedulerForAudioTranscriptions(
 			routingCtx,
 			apiKey.GroupID,
-			"",
 			sessionHash,
 			parsed.Model,
 			failedAccountIDs,
-			service.OpenAIUpstreamTransportHTTPSSE,
-			service.OpenAIAudioTranscriptionsRequiredAccountTypes,
-			false,
 		)
 		if err != nil {
 			reqLog.Warn("openai.audio_transcriptions.account_select_failed",
@@ -149,6 +145,7 @@ func (h *OpenAIGatewayHandler) AudioTranscriptions(c *gin.Context) {
 			zap.Int("top_k", scheduleDecision.TopK),
 			zap.Int64("latency_ms", scheduleDecision.LatencyMs),
 			zap.Float64("load_skew", scheduleDecision.LoadSkew),
+			zap.String("selection_model", selectionModel),
 		)
 
 		account := selection.Account
