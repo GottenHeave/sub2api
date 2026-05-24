@@ -218,6 +218,45 @@ func TestOpenAIGatewayService_BuildOpenAIRealtimeWSURLAllowsOAuth(t *testing.T) 
 	require.Equal(t, "wss://api.openai.com/v1/realtime?model=gpt-realtime", got)
 }
 
+func TestOpenAIGatewayService_BuildOpenAIRealtimeTranslationWSURL(t *testing.T) {
+	svc := &OpenAIGatewayService{
+		cfg: &config.Config{Security: config.SecurityConfig{URLAllowlist: config.URLAllowlistConfig{Enabled: false}}},
+	}
+	tests := []struct {
+		name    string
+		account *Account
+	}{
+		{
+			name: "api key",
+			account: &Account{
+				ID:          1,
+				Platform:    PlatformOpenAI,
+				Type:        AccountTypeAPIKey,
+				Status:      StatusActive,
+				Schedulable: true,
+				Credentials: map[string]any{"api_key": "sk-test"},
+			},
+		},
+		{
+			name: "oauth",
+			account: &Account{
+				ID:          2,
+				Platform:    PlatformOpenAI,
+				Type:        AccountTypeOAuth,
+				Status:      StatusActive,
+				Schedulable: true,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := svc.buildOpenAIRealtimeTranslationWSURL(tt.account, "gpt-realtime-translate")
+			require.NoError(t, err)
+			require.Equal(t, "wss://api.openai.com/v1/realtime/translations?model=gpt-realtime-translate", got)
+		})
+	}
+}
+
 func TestOpenAIGatewayService_BuildOpenAIRealtimeWSURLRejectsUnsupportedAccountType(t *testing.T) {
 	svc := &OpenAIGatewayService{}
 	account := &Account{
@@ -352,7 +391,7 @@ func TestOpenAIGatewayService_ProxyRealtimeWebSocketFromClient_RewritesSessionUp
 		req.URL.RawQuery = "model=client-realtime"
 		ginCtx.Request = req
 
-		serverErrCh <- svc.ProxyRealtimeWebSocketFromClient(r.Context(), ginCtx, conn, account, "sk-test", nil, "client-realtime", hooks)
+		serverErrCh <- svc.ProxyRealtimeWebSocketFromClient(r.Context(), ginCtx, conn, account, "sk-test", nil, "client-realtime", "/v1/realtime", hooks)
 	}))
 	defer wsServer.Close()
 

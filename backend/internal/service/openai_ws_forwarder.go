@@ -1079,6 +1079,10 @@ func (s *OpenAIGatewayService) buildOpenAIRealtimeWSURL(account *Account, model 
 	return s.buildOpenAIWSURL(account, "/v1/realtime", model)
 }
 
+func (s *OpenAIGatewayService) buildOpenAIRealtimeTranslationWSURL(account *Account, model string) (string, error) {
+	return s.buildOpenAIWSURL(account, "/v1/realtime/translations", model)
+}
+
 func (s *OpenAIGatewayService) buildOpenAIWSURL(account *Account, endpoint string, model string) (string, error) {
 	if account == nil {
 		return "", errors.New("account is nil")
@@ -1087,22 +1091,23 @@ func (s *OpenAIGatewayService) buildOpenAIWSURL(account *Account, endpoint strin
 	if endpoint == "" {
 		endpoint = "/v1/responses"
 	}
-	if endpoint == "/v1/realtime" && (account.Platform != PlatformOpenAI || (account.Type != AccountTypeAPIKey && account.Type != AccountTypeOAuth)) {
+	realtimeEndpoint := isOpenAIRealtimeWSEndpoint(endpoint)
+	if realtimeEndpoint && (account.Platform != PlatformOpenAI || (account.Type != AccountTypeAPIKey && account.Type != AccountTypeOAuth)) {
 		return "", errors.New("realtime websocket requires an OpenAI API key or OAuth account")
 	}
 	var targetURL string
 	switch account.Type {
 	case AccountTypeOAuth:
-		if endpoint == "/v1/realtime" {
-			targetURL = openaiPlatformRealtimeAPIURL
+		if realtimeEndpoint {
+			targetURL = buildOpenAIRealtimeEndpointURL("https://api.openai.com", endpoint)
 		} else {
 			targetURL = chatgptCodexURL
 		}
 	case AccountTypeAPIKey:
 		baseURL := account.GetOpenAIBaseURL()
 		if baseURL == "" {
-			if endpoint == "/v1/realtime" {
-				targetURL = openaiPlatformRealtimeAPIURL
+			if realtimeEndpoint {
+				targetURL = buildOpenAIRealtimeEndpointURL("https://api.openai.com", endpoint)
 			} else {
 				targetURL = openaiPlatformAPIURL
 			}
@@ -1111,15 +1116,15 @@ func (s *OpenAIGatewayService) buildOpenAIWSURL(account *Account, endpoint strin
 			if err != nil {
 				return "", err
 			}
-			if endpoint == "/v1/realtime" {
-				targetURL = buildOpenAIRealtimeURL(validatedURL)
+			if realtimeEndpoint {
+				targetURL = buildOpenAIRealtimeEndpointURL(validatedURL, endpoint)
 			} else {
 				targetURL = buildOpenAIResponsesURL(validatedURL)
 			}
 		}
 	default:
-		if endpoint == "/v1/realtime" {
-			targetURL = openaiPlatformRealtimeAPIURL
+		if realtimeEndpoint {
+			targetURL = buildOpenAIRealtimeEndpointURL("https://api.openai.com", endpoint)
 		} else {
 			targetURL = openaiPlatformAPIURL
 		}
@@ -1139,7 +1144,7 @@ func (s *OpenAIGatewayService) buildOpenAIWSURL(account *Account, endpoint strin
 	default:
 		return "", fmt.Errorf("unsupported scheme for ws: %s", parsed.Scheme)
 	}
-	if endpoint == "/v1/realtime" {
+	if realtimeEndpoint {
 		if m := strings.TrimSpace(model); m != "" {
 			query := parsed.Query()
 			query.Set("model", m)
@@ -1147,6 +1152,11 @@ func (s *OpenAIGatewayService) buildOpenAIWSURL(account *Account, endpoint strin
 		}
 	}
 	return parsed.String(), nil
+}
+
+func isOpenAIRealtimeWSEndpoint(endpoint string) bool {
+	endpoint = strings.TrimRight(strings.TrimSpace(endpoint), "/")
+	return endpoint == "/v1/realtime" || strings.HasPrefix(endpoint, "/v1/realtime/")
 }
 
 func (s *OpenAIGatewayService) buildOpenAIWSHeaders(
@@ -2433,6 +2443,7 @@ func (s *OpenAIGatewayService) ProxyRealtimeWebSocketFromClient(
 	token string,
 	firstClientMessage []byte,
 	model string,
+	upstreamEndpoint string,
 	hooks *OpenAIWSIngressHooks,
 ) error {
 	if s == nil {
@@ -2463,6 +2474,9 @@ func (s *OpenAIGatewayService) ProxyRealtimeWebSocketFromClient(
 	if wsDecision.Transport != OpenAIUpstreamTransportResponsesWebsocketV2 {
 		return fmt.Errorf("realtime websocket requires ws_v2 transport, got=%s", wsDecision.Transport)
 	}
+	if !isOpenAIRealtimeWSEndpoint(upstreamEndpoint) {
+		upstreamEndpoint = "/v1/realtime"
+	}
 	return s.proxyResponsesWebSocketV2Passthrough(
 		ctx,
 		c,
@@ -2472,7 +2486,7 @@ func (s *OpenAIGatewayService) ProxyRealtimeWebSocketFromClient(
 		firstClientMessage,
 		hooks,
 		wsDecision,
-		"/v1/realtime",
+		upstreamEndpoint,
 		model,
 	)
 }

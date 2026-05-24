@@ -5237,8 +5237,8 @@ func buildOpenAIResponsesURL(base string) string {
 	return buildOpenAIEndpointURL(base, "/v1/responses")
 }
 
-func buildOpenAIRealtimeURL(base string) string {
-	return buildOpenAIEndpointURL(base, "/v1/realtime")
+func buildOpenAIRealtimeEndpointURL(base string, endpoint string) string {
+	return buildOpenAIEndpointURL(base, endpoint)
 }
 
 func trimOpenAIEncryptedReasoningItems(reqBody map[string]any) bool {

@@ -1094,7 +1094,8 @@ func (h *OpenAIGatewayHandler) acquireResponsesAccountSlot(
 }
 
 type openAIWebSocketEndpointOptions struct {
-	Realtime bool
+	Realtime    bool
+	Translation bool
 }
 
 // ResponsesWebSocket handles OpenAI Responses API WebSocket ingress endpoint
@@ -1107,6 +1108,12 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 // GET /v1/realtime?model=... (Upgrade: websocket)
 func (h *OpenAIGatewayHandler) RealtimeWebSocket(c *gin.Context) {
 	h.openAIWebSocket(c, openAIWebSocketEndpointOptions{Realtime: true})
+}
+
+// RealtimeTranslationWebSocket handles OpenAI Realtime translation WebSocket ingress endpoint.
+// GET /v1/realtime/translations?model=... (Upgrade: websocket)
+func (h *OpenAIGatewayHandler) RealtimeTranslationWebSocket(c *gin.Context) {
+	h.openAIWebSocket(c, openAIWebSocketEndpointOptions{Realtime: true, Translation: true})
 }
 
 func (h *OpenAIGatewayHandler) openAIWebSocket(c *gin.Context, opts openAIWebSocketEndpointOptions) {
@@ -1450,7 +1457,7 @@ func (h *OpenAIGatewayHandler) openAIWebSocket(c *gin.Context, opts openAIWebSoc
 		if channelMappingWS.Mapped && strings.TrimSpace(channelMappingWS.MappedModel) != "" {
 			realtimeModel = channelMappingWS.MappedModel
 		}
-		proxyErr = h.gatewayService.ProxyRealtimeWebSocketFromClient(ctx, c, wsConn, account, token, wsFirstMessage, realtimeModel, hooks)
+		proxyErr = h.gatewayService.ProxyRealtimeWebSocketFromClient(ctx, c, wsConn, account, token, wsFirstMessage, realtimeModel, opts.RealtimeUpstreamEndpoint(), hooks)
 	} else {
 		proxyErr = h.gatewayService.ProxyResponsesWebSocketFromClient(ctx, c, wsConn, account, token, wsFirstMessage, hooks)
 	}
@@ -1476,9 +1483,19 @@ func (h *OpenAIGatewayHandler) openAIWebSocket(c *gin.Context, opts openAIWebSoc
 
 func openAIWebSocketLoggerName(opts openAIWebSocketEndpointOptions) string {
 	if opts.Realtime {
+		if opts.Translation {
+			return "handler.openai_gateway.realtime_translation_ws"
+		}
 		return "handler.openai_gateway.realtime_ws"
 	}
 	return "handler.openai_gateway.responses_ws"
+}
+
+func (opts openAIWebSocketEndpointOptions) RealtimeUpstreamEndpoint() string {
+	if opts.Realtime && opts.Translation {
+		return "/v1/realtime/translations"
+	}
+	return "/v1/realtime"
 }
 
 func openAIWebSocketMissingFirstMessageReason(opts openAIWebSocketEndpointOptions) string {

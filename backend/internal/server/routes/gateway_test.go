@@ -117,10 +117,32 @@ func TestGatewayRoutesOpenAIRealtimePathIsRegistered(t *testing.T) {
 	require.Equal(t, http.StatusUpgradeRequired, w.Code)
 }
 
+func TestGatewayRoutesOpenAIRealtimeTranslationPathIsRegistered(t *testing.T) {
+	router := newGatewayRoutesTestRouter()
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/realtime/translations?model=gpt-realtime-translate", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+	require.NotEqual(t, http.StatusNotFound, w.Code)
+	require.Equal(t, http.StatusUpgradeRequired, w.Code)
+}
+
 func TestGatewayRoutesOpenAIRealtimeRejectsNonOpenAIPlatform(t *testing.T) {
 	router := newGatewayRoutesTestRouterForPlatform(service.PlatformAnthropic)
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/realtime?model=gpt-realtime", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+	require.Equal(t, http.StatusNotFound, w.Code)
+	require.Contains(t, w.Body.String(), "Realtime API is not supported for this platform")
+}
+
+func TestGatewayRoutesOpenAIRealtimeTranslationRejectsNonOpenAIPlatform(t *testing.T) {
+	router := newGatewayRoutesTestRouterForPlatform(service.PlatformAnthropic)
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/realtime/translations?model=gpt-realtime-translate", nil)
 	w := httptest.NewRecorder()
 
 	router.ServeHTTP(w, req)
@@ -149,6 +171,7 @@ func TestGatewayRoutesOpenAIRealtimeRESTPathsAreRegistered(t *testing.T) {
 		{"/v1/realtime/client_secrets", `{"session":{"type":"realtime","model":"gpt-realtime"}}`},
 		{"/v1/realtime/translations/client_secrets", `{"session":{"model":"gpt-realtime-translate"}}`},
 		{"/v1/realtime/calls", `{"model":"gpt-realtime"}`},
+		{"/v1/realtime/translations/calls", `{"model":"gpt-realtime-translate"}`},
 		{"/v1/realtime/calls/call_123/hangup", `{}`},
 		{"/v1/realtime/calls/call_123/refer", `{"target_uri":"tel:+15551234567"}`},
 		{"/v1/realtime/calls/call_123/reject", `{"status_code":603}`},
