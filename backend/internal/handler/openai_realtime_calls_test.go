@@ -132,6 +132,39 @@ func TestOpenAIGatewayHandlerRealtimeCallsAccept_AccountSwitch(t *testing.T) {
 	require.Equal(t, []int64{1, 2}, upstream.accountIDs)
 }
 
+func TestOpenAIGatewayHandlerRealtimeREST_ClientSecretAccountMappingForwardsMappedTranscriptionModel(t *testing.T) {
+	upstream := &realtimeCallsHandlerUpstream{statuses: []int{http.StatusOK}}
+	account := newRealtimeCallsHandlerAccount(1)
+	account.Credentials["model_mapping"] = map[string]any{
+		"client-transcribe": "gpt-4o-transcribe",
+	}
+	handler := newRealtimeCallsHandlerForTest(t, upstream, []service.Account{account})
+	c, rec := newRealtimeCallsHandlerContext(t, "/v1/realtime/client_secrets", []byte(`{"session":{"type":"transcription","audio":{"input":{"transcription":{"model":"client-transcribe"}}}}}`))
+
+	handler.RealtimeREST(c)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Len(t, upstream.bodies, 1)
+	require.Equal(t, "https://api.openai.com/v1/realtime/client_secrets", upstream.urls[0])
+	require.Equal(t, "gpt-4o-transcribe", gjson.GetBytes(upstream.bodies[0], "session.audio.input.transcription.model").String())
+}
+
+func TestOpenAIGatewayHandlerRealtimeREST_CallControlNoModelDispatchesAccount(t *testing.T) {
+	upstream := &realtimeCallsHandlerUpstream{statuses: []int{http.StatusOK}}
+	handler := newRealtimeCallsHandlerForTest(t, upstream, []service.Account{
+		newRealtimeCallsHandlerAccount(1),
+	})
+	body := []byte(`{"status_code":603}`)
+	c, rec := newRealtimeCallsHandlerContext(t, "/v1/realtime/calls/call_123/reject", body)
+
+	handler.RealtimeREST(c)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, []int64{1}, upstream.accountIDs)
+	require.Equal(t, "https://api.openai.com/v1/realtime/calls/call_123/reject", upstream.urls[0])
+	require.JSONEq(t, string(body), string(upstream.bodies[0]))
+}
+
 func newRealtimeCallsHandlerForTest(t *testing.T, upstream service.HTTPUpstream, accounts []service.Account) *OpenAIGatewayHandler {
 	t.Helper()
 	cfg := &config.Config{RunMode: config.RunModeSimple}

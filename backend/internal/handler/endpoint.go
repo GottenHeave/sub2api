@@ -19,7 +19,8 @@ const (
 	EndpointChatCompletions     = "/v1/chat/completions"
 	EndpointResponses           = "/v1/responses"
 	EndpointRealtime            = "/v1/realtime"
-	EndpointRealtimeCallsAccept = "/v1/realtime/calls/accept"
+	EndpointRealtimeREST        = "/v1/realtime/rest"
+	EndpointRealtimeCallsAccept = EndpointRealtimeREST
 	EndpointAudioTranscriptions = "/v1/audio/transcriptions"
 	EndpointTranscribe          = "/transcribe"
 	EndpointImagesGenerations   = "/v1/images/generations"
@@ -60,8 +61,8 @@ func NormalizeInboundEndpoint(path string) string {
 		return EndpointTranscribe
 	case strings.Contains(path, EndpointResponses):
 		return EndpointResponses
-	case strings.Contains(path, "/realtime/calls/") && strings.HasSuffix(path, "/accept"):
-		return EndpointRealtimeCallsAccept
+	case isRealtimeRESTEndpoint(path):
+		return EndpointRealtimeREST
 	case strings.Contains(path, EndpointRealtime):
 		return EndpointRealtime
 	case strings.Contains(path, EndpointGeminiModels):
@@ -96,8 +97,8 @@ func DeriveUpstreamEndpoint(inbound, rawRequestPath, platform string) string {
 		if inbound == EndpointRealtime {
 			return EndpointRealtime
 		}
-		if inbound == EndpointRealtimeCallsAccept {
-			return realtimeCallsAcceptUpstreamPath(rawRequestPath)
+		if inbound == EndpointRealtimeREST {
+			return realtimeRESTUpstreamPath(rawRequestPath)
 		}
 		// OpenAI forwards everything to the Responses API.
 		// Preserve subresource suffix (e.g. /v1/responses/compact).
@@ -143,11 +144,35 @@ func responsesSubpathSuffix(rawPath string) string {
 	return suffix
 }
 
-func realtimeCallsAcceptUpstreamPath(rawPath string) string {
+func isRealtimeRESTEndpoint(path string) bool {
+	trimmed := strings.TrimRight(strings.TrimSpace(path), "/")
+	if trimmed == "" {
+		return false
+	}
+	switch {
+	case strings.Contains(trimmed, "/realtime/client_secrets"):
+		return true
+	case strings.Contains(trimmed, "/realtime/translations/client_secrets"):
+		return true
+	case strings.Contains(trimmed, "/realtime/sessions"):
+		return true
+	case strings.Contains(trimmed, "/realtime/transcription_sessions"):
+		return true
+	case strings.Contains(trimmed, "/realtime/calls"):
+		return true
+	default:
+		return false
+	}
+}
+
+func realtimeRESTUpstreamPath(rawPath string) string {
 	trimmed := strings.TrimRight(strings.TrimSpace(rawPath), "/")
-	idx := strings.LastIndex(trimmed, "/realtime/calls/")
+	idx := strings.LastIndex(trimmed, "/realtime/")
 	if idx < 0 {
-		return EndpointRealtimeCallsAccept
+		if strings.HasSuffix(trimmed, "/realtime") {
+			return EndpointRealtime
+		}
+		return EndpointRealtimeREST
 	}
 	return "/v1" + trimmed[idx:]
 }

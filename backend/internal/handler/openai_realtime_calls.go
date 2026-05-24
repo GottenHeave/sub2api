@@ -16,6 +16,11 @@ import (
 // RealtimeCallsAccept handles OpenAI Realtime call accept requests.
 // POST /v1/realtime/calls/:call_id/accept
 func (h *OpenAIGatewayHandler) RealtimeCallsAccept(c *gin.Context) {
+	h.RealtimeREST(c)
+}
+
+// RealtimeREST handles OpenAI Realtime REST requests.
+func (h *OpenAIGatewayHandler) RealtimeREST(c *gin.Context) {
 	streamStarted := false
 	defer h.recoverResponsesPanic(c, &streamStarted)
 	setOpenAIClientTransportHTTP(c)
@@ -33,7 +38,7 @@ func (h *OpenAIGatewayHandler) RealtimeCallsAccept(c *gin.Context) {
 	}
 	reqLog := requestLogger(
 		c,
-		"handler.openai_gateway.realtime_calls_accept",
+		"handler.openai_gateway.realtime_rest",
 		zap.Int64("user_id", subject.UserID),
 		zap.Int64("api_key_id", apiKey.ID),
 		zap.Any("group_id", apiKey.GroupID),
@@ -51,13 +56,18 @@ func (h *OpenAIGatewayHandler) RealtimeCallsAccept(c *gin.Context) {
 		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to read request body")
 		return
 	}
-	parsed, err := service.ParseOpenAIRealtimeCallsAcceptRequest(c, body)
+	parsed, err := service.ParseOpenAIRealtimeRESTRequest(c, body)
 	if err != nil {
 		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", err.Error())
 		return
 	}
 
-	reqLog = reqLog.With(zap.String("model", parsed.Model), zap.String("call_id", parsed.CallID))
+	reqLog = reqLog.With(
+		zap.String("model", parsed.Model),
+		zap.String("call_id", parsed.CallID),
+		zap.String("endpoint", parsed.Endpoint),
+		zap.String("action", parsed.Action),
+	)
 	setOpsRequestContext(c, parsed.Model, false)
 	setOpsEndpointContext(c, "", int16(service.RequestTypeFromLegacy(false, false)))
 
@@ -66,7 +76,14 @@ func (h *OpenAIGatewayHandler) RealtimeCallsAccept(c *gin.Context) {
 		return
 	}
 
-	channelMapping, _ := h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, parsed.Model)
+	channelMappedModels := make(map[string]string, len(parsed.ModelRefs))
+	for _, ref := range parsed.ModelRefs {
+		if ref.Value == "" || ref.Path == "" {
+			continue
+		}
+		channelMapping, _ := h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, ref.Value)
+		channelMappedModels[ref.Path] = channelMapping.MappedModel
+	}
 	if h.errorPassthroughService != nil {
 		service.BindErrorPassthroughService(c, h.errorPassthroughService)
 	}
@@ -83,7 +100,7 @@ func (h *OpenAIGatewayHandler) RealtimeCallsAccept(c *gin.Context) {
 	}
 
 	if err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription); err != nil {
-		reqLog.Info("openai.realtime_calls_accept.billing_eligibility_check_failed", zap.Error(err))
+		reqLog.Info("openai.realtime_rest.billing_eligibility_check_failed", zap.Error(err))
 		status, code, message, retryAfter := billingErrorDetails(err)
 		if retryAfter > 0 {
 			c.Header("Retry-After", strconv.Itoa(retryAfter))
@@ -112,7 +129,7 @@ func (h *OpenAIGatewayHandler) RealtimeCallsAccept(c *gin.Context) {
 			false,
 		)
 		if err != nil {
-			reqLog.Warn("openai.realtime_calls_accept.account_select_failed",
+			reqLog.Warn("openai.realtime_rest.account_select_failed",
 				zap.Error(err),
 				zap.Int("excluded_account_count", len(failedAccountIDs)),
 			)
@@ -133,7 +150,7 @@ func (h *OpenAIGatewayHandler) RealtimeCallsAccept(c *gin.Context) {
 			h.handleStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "No available compatible accounts", streamStarted)
 			return
 		}
-		reqLog.Debug("openai.realtime_calls_accept.account_schedule_decision",
+		reqLog.Debug("openai.realtime_rest.account_schedule_decision",
 			zap.String("layer", scheduleDecision.Layer),
 			zap.Bool("sticky_session_hit", scheduleDecision.StickySessionHit),
 			zap.Int("candidate_count", scheduleDecision.CandidateCount),
@@ -153,7 +170,7 @@ func (h *OpenAIGatewayHandler) RealtimeCallsAccept(c *gin.Context) {
 
 		service.SetOpsLatencyMs(c, service.OpsRoutingLatencyMsKey, time.Since(routingStart).Milliseconds())
 		forwardStart := time.Now()
-		result, err := h.gatewayService.ForwardRealtimeCallsAccept(c.Request.Context(), c, account, parsed, channelMapping.MappedModel)
+		result, err := h.gatewayService.ForwardRealtimeREST(c.Request.Context(), c, account, parsed, channelMappedModels)
 		forwardDurationMs := time.Since(forwardStart).Milliseconds()
 		if accountReleaseFunc != nil {
 			accountReleaseFunc()
@@ -173,7 +190,7 @@ func (h *OpenAIGatewayHandler) RealtimeCallsAccept(c *gin.Context) {
 					retryLimit := account.GetPoolModeRetryCount()
 					if sameAccountRetryCount[account.ID] < retryLimit {
 						sameAccountRetryCount[account.ID]++
-						reqLog.Warn("openai.realtime_calls_accept.pool_mode_same_account_retry",
+						reqLog.Warn("openai.realtime_rest.pool_mode_same_account_retry",
 							zap.Int64("account_id", account.ID),
 							zap.Int("upstream_status", failoverErr.StatusCode),
 							zap.Int("retry_limit", retryLimit),
@@ -205,10 +222,10 @@ func (h *OpenAIGatewayHandler) RealtimeCallsAccept(c *gin.Context) {
 				zap.Error(err),
 			}
 			if shouldLogOpenAIForwardFailureAsWarn(c, wroteFallback) {
-				reqLog.Warn("openai.realtime_calls_accept.forward_failed", fields...)
+				reqLog.Warn("openai.realtime_rest.forward_failed", fields...)
 				return
 			}
-			reqLog.Error("openai.realtime_calls_accept.forward_failed", fields...)
+			reqLog.Error("openai.realtime_rest.forward_failed", fields...)
 			return
 		}
 

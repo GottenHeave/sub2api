@@ -92,7 +92,7 @@ func RegisterGatewayRoutes(
 			}
 			h.OpenAIGateway.RealtimeWebSocket(c)
 		})
-		gateway.POST("/realtime/calls/:call_id/accept", func(c *gin.Context) {
+		realtimeRESTHandler := func(c *gin.Context) {
 			if getGroupPlatform(c) != service.PlatformOpenAI {
 				c.JSON(http.StatusNotFound, gin.H{
 					"error": gin.H{
@@ -102,8 +102,17 @@ func RegisterGatewayRoutes(
 				})
 				return
 			}
-			h.OpenAIGateway.RealtimeCallsAccept(c)
-		})
+			h.OpenAIGateway.RealtimeREST(c)
+		}
+		gateway.POST("/realtime/client_secrets", realtimeRESTHandler)
+		gateway.POST("/realtime/translations/client_secrets", realtimeRESTHandler)
+		gateway.POST("/realtime/calls", realtimeRESTHandler)
+		gateway.POST("/realtime/calls/:call_id/accept", realtimeRESTHandler)
+		gateway.POST("/realtime/calls/:call_id/hangup", realtimeRESTHandler)
+		gateway.POST("/realtime/calls/:call_id/refer", realtimeRESTHandler)
+		gateway.POST("/realtime/calls/:call_id/reject", realtimeRESTHandler)
+		gateway.POST("/realtime/sessions", realtimeRESTHandler)
+		gateway.POST("/realtime/transcription_sessions", realtimeRESTHandler)
 		gateway.POST("/audio/transcriptions", func(c *gin.Context) {
 			if getGroupPlatform(c) != service.PlatformOpenAI {
 				c.JSON(http.StatusNotFound, gin.H{
