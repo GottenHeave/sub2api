@@ -128,6 +128,29 @@ func TestGatewayRoutesOpenAIRealtimeRejectsNonOpenAIPlatform(t *testing.T) {
 	require.Contains(t, w.Body.String(), "Realtime API is not supported for this platform")
 }
 
+func TestGatewayRoutesOpenAIRealtimeCallsAcceptPathIsRegistered(t *testing.T) {
+	router := newGatewayRoutesTestRouter()
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/realtime/calls/call_123/accept", strings.NewReader(`{"type":"realtime","model":"gpt-realtime"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+	require.NotEqual(t, http.StatusNotFound, w.Code)
+}
+
+func TestGatewayRoutesOpenAIRealtimeCallsAcceptRejectsNonOpenAIPlatform(t *testing.T) {
+	router := newGatewayRoutesTestRouterForPlatform(service.PlatformAnthropic)
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/realtime/calls/call_123/accept", strings.NewReader(`{"type":"realtime","model":"gpt-realtime"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+	require.Equal(t, http.StatusNotFound, w.Code)
+	require.Contains(t, w.Body.String(), "Realtime API is not supported for this platform")
+}
+
 func TestGatewayRoutesOpenAIAudioTranscriptionsPathsAreRegistered(t *testing.T) {
 	router := newGatewayRoutesTestRouter()
 

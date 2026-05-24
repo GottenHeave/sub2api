@@ -19,6 +19,7 @@ const (
 	EndpointChatCompletions     = "/v1/chat/completions"
 	EndpointResponses           = "/v1/responses"
 	EndpointRealtime            = "/v1/realtime"
+	EndpointRealtimeCallsAccept = "/v1/realtime/calls/accept"
 	EndpointAudioTranscriptions = "/v1/audio/transcriptions"
 	EndpointTranscribe          = "/transcribe"
 	EndpointImagesGenerations   = "/v1/images/generations"
@@ -59,6 +60,8 @@ func NormalizeInboundEndpoint(path string) string {
 		return EndpointTranscribe
 	case strings.Contains(path, EndpointResponses):
 		return EndpointResponses
+	case strings.Contains(path, "/realtime/calls/") && strings.HasSuffix(path, "/accept"):
+		return EndpointRealtimeCallsAccept
 	case strings.Contains(path, EndpointRealtime):
 		return EndpointRealtime
 	case strings.Contains(path, EndpointGeminiModels):
@@ -92,6 +95,9 @@ func DeriveUpstreamEndpoint(inbound, rawRequestPath, platform string) string {
 		}
 		if inbound == EndpointRealtime {
 			return EndpointRealtime
+		}
+		if inbound == EndpointRealtimeCallsAccept {
+			return realtimeCallsAcceptUpstreamPath(rawRequestPath)
 		}
 		// OpenAI forwards everything to the Responses API.
 		// Preserve subresource suffix (e.g. /v1/responses/compact).
@@ -135,6 +141,15 @@ func responsesSubpathSuffix(rawPath string) string {
 		return ""
 	}
 	return suffix
+}
+
+func realtimeCallsAcceptUpstreamPath(rawPath string) string {
+	trimmed := strings.TrimRight(strings.TrimSpace(rawPath), "/")
+	idx := strings.LastIndex(trimmed, "/realtime/calls/")
+	if idx < 0 {
+		return EndpointRealtimeCallsAccept
+	}
+	return "/v1" + trimmed[idx:]
 }
 
 // ──────────────────────────────────────────────────────────
