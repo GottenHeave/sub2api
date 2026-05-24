@@ -257,6 +257,56 @@ func TestOpenAIGatewayService_ForwardRealtimeREST_TranslationMapsSessionAndTrans
 	require.Equal(t, "gpt-realtime-translate", result.UpstreamModel)
 }
 
+func TestOpenAIGatewayService_ForwardRealtimeREST_TranslationOAuthHeaders(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	body := []byte(`{"session":{"model":"client-translate"}}`)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/realtime/translations/client_secrets", bytes.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Request.Header.Set("originator", "codex_cli_rs")
+
+	upstream := &httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"application/json"}, "x-request-id": []string{"rid_translation_oauth"}},
+		Body:       io.NopCloser(bytes.NewReader([]byte(`{"value":"secret"}`))),
+	}}
+	svc := &OpenAIGatewayService{
+		cfg:          &config.Config{},
+		httpUpstream: upstream,
+	}
+	account := &Account{
+		ID:          123,
+		Name:        "acc",
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"access_token":       "oauth-token",
+			"chatgpt_account_id": "chatgpt-acc",
+			"model_mapping": map[string]any{
+				"client-translate": "gpt-realtime-translate",
+			},
+		},
+		Status:      StatusActive,
+		Schedulable: true,
+	}
+	parsed, err := ParseOpenAIRealtimeRESTRequest(c, body)
+	require.NoError(t, err)
+
+	result, err := svc.ForwardRealtimeREST(context.Background(), c, account, parsed, nil)
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, "https://api.openai.com/v1/realtime/translations/client_secrets", upstream.lastReq.URL.String())
+	require.Equal(t, "Bearer oauth-token", upstream.lastReq.Header.Get("Authorization"))
+	require.Equal(t, "chatgpt-acc", upstream.lastReq.Header.Get("chatgpt-account-id"))
+	require.Equal(t, "codex_cli_rs", upstream.lastReq.Header.Get("originator"))
+	require.Equal(t, "gpt-realtime-translate", gjson.GetBytes(upstream.lastBody, "session.model").String())
+	require.Equal(t, "client-translate", result.Model)
+	require.Equal(t, "gpt-realtime-translate", result.UpstreamModel)
+}
+
 func TestOpenAIGatewayService_ForwardRealtimeREST_CallControlAllowsNoModel(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	rec := httptest.NewRecorder()
