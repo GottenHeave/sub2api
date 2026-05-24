@@ -170,14 +170,6 @@ func extractOpenAIRealtimeRESTModelRefs(endpoint string, body []byte) []OpenAIRe
 	return refs
 }
 
-func extractOpenAIRealtimeCallsAcceptCallID(path string) string {
-	endpoint, callID, action, err := normalizeOpenAIRealtimeRESTEndpoint(path)
-	if err != nil || action != "accept" || endpoint == "" {
-		return ""
-	}
-	return callID
-}
-
 func OpenAIRealtimeCallsAcceptUpstreamEndpoint(callID string) string {
 	callID = strings.Trim(strings.TrimSpace(callID), "/")
 	if callID == "" {
@@ -412,17 +404,6 @@ func (s *OpenAIGatewayService) buildOpenAIRealtimeRESTRequest(
 		req.Header.Set("User-Agent", codexCLIUserAgent)
 	}
 	return req, nil
-}
-
-func (s *OpenAIGatewayService) buildOpenAIRealtimeCallsAcceptRequest(
-	ctx context.Context,
-	c *gin.Context,
-	account *Account,
-	callID string,
-	body []byte,
-	token string,
-) (*http.Request, error) {
-	return s.buildOpenAIRealtimeRESTRequest(ctx, c, account, OpenAIRealtimeCallsAcceptUpstreamEndpoint(callID), body, token)
 }
 
 func buildOpenAIRealtimeRESTURL(base string, endpoint string) string {
