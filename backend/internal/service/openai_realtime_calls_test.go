@@ -257,6 +257,64 @@ func TestOpenAIGatewayService_ForwardRealtimeREST_TranslationMapsSessionAndTrans
 	require.Equal(t, "gpt-realtime-translate", result.UpstreamModel)
 }
 
+func TestOpenAIGatewayService_ForwardRealtimeREST_TranslationCallsMapsModel(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	body := []byte(`{"model":"client-translate-call","sdp":"v=0"}`)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/realtime/translations/calls", bytes.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/sdp")
+
+	upstream := &httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"application/json"}, "x-request-id": []string{"rid_translation_call"}},
+		Body:       io.NopCloser(bytes.NewReader([]byte(`{"id":"call_123"}`))),
+	}}
+	svc := &OpenAIGatewayService{
+		cfg:          &config.Config{},
+		httpUpstream: upstream,
+	}
+	account := &Account{
+		ID:          123,
+		Name:        "acc",
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"access_token":       "oauth-token",
+			"chatgpt_account_id": "chatgpt-acc",
+			"model_mapping": map[string]any{
+				"mapped-translate-call": "gpt-realtime-translate",
+			},
+		},
+		Status:      StatusActive,
+		Schedulable: true,
+	}
+	parsed, err := ParseOpenAIRealtimeRESTRequest(c, body)
+	require.NoError(t, err)
+	require.Equal(t, "/v1/realtime/translations/calls", parsed.Endpoint)
+	require.Equal(t, "client-translate-call", parsed.Model)
+	require.Equal(t, "model", parsed.ScheduleModelPath)
+
+	result, err := svc.ForwardRealtimeREST(
+		context.Background(),
+		c,
+		account,
+		parsed,
+		map[string]string{"model": "mapped-translate-call"},
+	)
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, "https://api.openai.com/v1/realtime/translations/calls", upstream.lastReq.URL.String())
+	require.Equal(t, "application/sdp", upstream.lastReq.Header.Get("Content-Type"))
+	require.Equal(t, "Bearer oauth-token", upstream.lastReq.Header.Get("Authorization"))
+	require.Equal(t, "chatgpt-acc", upstream.lastReq.Header.Get("chatgpt-account-id"))
+	require.Equal(t, "gpt-realtime-translate", gjson.GetBytes(upstream.lastBody, "model").String())
+	require.Equal(t, "client-translate-call", result.Model)
+	require.Equal(t, "gpt-realtime-translate", result.UpstreamModel)
+}
+
 func TestOpenAIGatewayService_ForwardRealtimeREST_TranslationOAuthHeaders(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	rec := httptest.NewRecorder()

@@ -122,7 +122,7 @@ func (h *OpenAIGatewayHandler) RealtimeREST(c *gin.Context) {
 			apiKey.GroupID,
 			"",
 			sessionHash,
-			parsed.Model,
+			"",
 			failedAccountIDs,
 			service.OpenAIUpstreamTransportHTTPSSE,
 			"",

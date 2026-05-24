@@ -115,6 +115,7 @@ func normalizeOpenAIRealtimeRESTEndpoint(path string) (endpoint string, callID s
 	case "/v1/realtime/client_secrets",
 		"/v1/realtime/translations/client_secrets",
 		"/v1/realtime/calls",
+		"/v1/realtime/translations/calls",
 		"/v1/realtime/sessions",
 		"/v1/realtime/transcription_sessions":
 		return trimmed, "", "", nil
@@ -149,7 +150,7 @@ func extractOpenAIRealtimeRESTModelRefs(endpoint string, body []byte) []OpenAIRe
 		paths = []string{"session.model", "session.audio.input.transcription.model"}
 	case "/v1/realtime/translations/client_secrets":
 		paths = []string{"session.model", "session.audio.input.transcription.model"}
-	case "/v1/realtime/calls":
+	case "/v1/realtime/calls", "/v1/realtime/translations/calls":
 		paths = []string{"model", "session.model"}
 	case "/v1/realtime/sessions":
 		paths = []string{"model"}
@@ -387,7 +388,9 @@ func (s *OpenAIGatewayService) buildOpenAIRealtimeRESTRequest(
 	req.Header.Del("X-Api-Key")
 	req.Header.Del("X-Goog-Api-Key")
 	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
+	if strings.TrimSpace(req.Header.Get("Content-Type")) == "" {
+		req.Header.Set("Content-Type", "application/json")
+	}
 	if account.Type == AccountTypeOAuth {
 		if chatgptAccountID := account.GetChatGPTAccountID(); chatgptAccountID != "" {
 			req.Header.Set("chatgpt-account-id", chatgptAccountID)

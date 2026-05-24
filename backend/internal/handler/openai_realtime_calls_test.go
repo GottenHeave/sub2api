@@ -149,6 +149,31 @@ func TestOpenAIGatewayHandlerRealtimeREST_ClientSecretAccountMappingForwardsMapp
 	require.Equal(t, "gpt-4o-transcribe", gjson.GetBytes(upstream.bodies[0], "session.audio.input.transcription.model").String())
 }
 
+func TestOpenAIGatewayHandlerRealtimeREST_TranslationClientSecretDoesNotFilterBySessionModel(t *testing.T) {
+	upstream := &realtimeCallsHandlerUpstream{statuses: []int{http.StatusOK}}
+	account := newRealtimeCallsHandlerAccount(1)
+	account.Type = service.AccountTypeOAuth
+	account.Credentials = map[string]any{
+		"access_token":       "oauth-token",
+		"chatgpt_account_id": "chatgpt-acc",
+		"model_mapping": map[string]any{
+			"client-transcribe": "gpt-4o-transcribe",
+		},
+	}
+	handler := newRealtimeCallsHandlerForTest(t, upstream, []service.Account{account})
+	body := []byte(`{"session":{"model":"gpt-realtime-translate","audio":{"input":{"transcription":{"model":"client-transcribe"}}}}}`)
+	c, rec := newRealtimeCallsHandlerContext(t, "/v1/realtime/translations/client_secrets", body)
+
+	handler.RealtimeREST(c)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, []int64{1}, upstream.accountIDs)
+	require.Len(t, upstream.bodies, 1)
+	require.Equal(t, "https://api.openai.com/v1/realtime/translations/client_secrets", upstream.urls[0])
+	require.Equal(t, "gpt-realtime-translate", gjson.GetBytes(upstream.bodies[0], "session.model").String())
+	require.Equal(t, "gpt-4o-transcribe", gjson.GetBytes(upstream.bodies[0], "session.audio.input.transcription.model").String())
+}
+
 func TestOpenAIGatewayHandlerRealtimeREST_CallControlNoModelDispatchesAccount(t *testing.T) {
 	upstream := &realtimeCallsHandlerUpstream{statuses: []int{http.StatusOK}}
 	handler := newRealtimeCallsHandlerForTest(t, upstream, []service.Account{

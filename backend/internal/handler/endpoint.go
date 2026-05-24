@@ -154,6 +154,8 @@ func isRealtimeRESTEndpoint(path string) bool {
 		return true
 	case strings.Contains(trimmed, "/realtime/translations/client_secrets"):
 		return true
+	case strings.Contains(trimmed, "/realtime/translations/calls"):
+		return true
 	case strings.Contains(trimmed, "/realtime/sessions"):
 		return true
 	case strings.Contains(trimmed, "/realtime/transcription_sessions"):
