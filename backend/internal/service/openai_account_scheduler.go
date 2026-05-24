@@ -1145,6 +1145,51 @@ func (s *OpenAIGatewayService) SelectAccountWithSchedulerForAccountType(
 	return s.selectAccountWithScheduler(ctx, groupID, previousResponseID, sessionHash, requestedModel, excludedIDs, requiredTransport, "", requiredAccountType, requireCompact)
 }
 
+func (s *OpenAIGatewayService) SelectAccountWithSchedulerForAudioTranscriptions(
+	ctx context.Context,
+	groupID *int64,
+	sessionHash string,
+	requestedModel string,
+	excludedIDs map[int64]struct{},
+) (*AccountSelectionResult, OpenAIAccountScheduleDecision, string, error) {
+	selection, decision, err := s.SelectAccountWithSchedulerForAccountType(
+		ctx,
+		groupID,
+		"",
+		sessionHash,
+		requestedModel,
+		excludedIDs,
+		OpenAIUpstreamTransportHTTPSSE,
+		OpenAIAudioTranscriptionsRequiredAccountTypes,
+		false,
+	)
+	if err == nil {
+		return selection, decision, requestedModel, nil
+	}
+	if s.checkChannelPricingRestriction(ctx, groupID, requestedModel) {
+		return nil, decision, requestedModel, err
+	}
+	fallbackModel := OpenAIAudioTranscriptionsAccountSelectionModel(requestedModel)
+	if fallbackModel == "" || fallbackModel == requestedModel {
+		return nil, decision, requestedModel, err
+	}
+	fallbackSelection, fallbackDecision, fallbackErr := s.SelectAccountWithSchedulerForAccountType(
+		ctx,
+		groupID,
+		"",
+		sessionHash,
+		fallbackModel,
+		excludedIDs,
+		OpenAIUpstreamTransportHTTPSSE,
+		OpenAIAudioTranscriptionsRequiredAccountTypes,
+		false,
+	)
+	if fallbackErr != nil {
+		return nil, decision, requestedModel, err
+	}
+	return fallbackSelection, fallbackDecision, fallbackModel, nil
+}
+
 func (s *OpenAIGatewayService) SelectAccountWithSchedulerForImages(
 	ctx context.Context,
 	groupID *int64,

@@ -79,6 +79,20 @@ func OpenAIAudioTranscriptionsModelRateLimitScopeIfModel(model string) string {
 	return OpenAIAudioTranscriptionsModelRateLimitScope(model)
 }
 
+func OpenAIAudioTranscriptionsAccountSelectionModel(model string) string {
+	model = strings.ToLower(strings.TrimSpace(model))
+	switch {
+	case model == "gpt-4o-transcribe",
+		model == "gpt-4o-transcribe-diarize",
+		model == "whisper-1",
+		strings.HasPrefix(model, "gpt-4o-transcribe-"),
+		strings.HasPrefix(model, "gpt-4o-mini-transcribe-"):
+		return OpenAIAudioTranscriptionsDefaultModel
+	default:
+		return ""
+	}
+}
+
 func (s *OpenAIGatewayService) ParseOpenAIAudioTranscriptionsRequest(c *gin.Context, body []byte) (*OpenAIAudioTranscriptionsRequest, error) {
 	if c == nil || c.Request == nil {
 		return nil, fmt.Errorf("missing request context")

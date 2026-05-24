@@ -54,12 +54,21 @@ type audioTranscriptionHandlerUpstream struct {
 	statuses   []int
 	accountIDs []int64
 	urls       []string
+	bodies     [][]byte
 }
 
 func (u *audioTranscriptionHandlerUpstream) Do(req *http.Request, _ string, accountID int64, _ int) (*http.Response, error) {
 	u.accountIDs = append(u.accountIDs, accountID)
 	if req != nil && req.URL != nil {
 		u.urls = append(u.urls, req.URL.String())
+	}
+	if req != nil && req.Body != nil {
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			return nil, err
+		}
+		u.bodies = append(u.bodies, body)
+		req.Body = io.NopCloser(bytes.NewReader(body))
 	}
 	status := http.StatusOK
 	if idx := len(u.accountIDs) - 1; idx < len(u.statuses) {
@@ -97,6 +106,35 @@ func TestOpenAIGatewayHandlerAudioTranscriptions_DispatchesOAuthAccount(t *testi
 	require.Equal(t, []int64{9}, upstream.accountIDs)
 	require.Equal(t, []string{"https://chatgpt.com/backend-api/transcribe"}, upstream.urls)
 	require.JSONEq(t, `{"text":"ok"}`, rec.Body.String())
+}
+
+func TestOpenAIGatewayHandlerAudioTranscriptions_FallbackSelectionStillForwardsRequestedModel(t *testing.T) {
+	tests := []struct {
+		model string
+	}{
+		{model: "gpt-4o-transcribe"},
+		{model: "whisper-1"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.model, func(t *testing.T) {
+			upstream := &audioTranscriptionHandlerUpstream{statuses: []int{http.StatusOK}}
+			account := newAudioTranscriptionHandlerAccount(1)
+			account.Credentials["model_mapping"] = map[string]any{
+				service.OpenAIAudioTranscriptionsDefaultModel: service.OpenAIAudioTranscriptionsDefaultModel,
+			}
+			handler := newAudioTranscriptionHandlerForTest(t, upstream, []service.Account{account})
+			c, rec := newAudioTranscriptionHandlerContextWithModel(t, "/v1/audio/transcriptions", tt.model)
+
+			handler.AudioTranscriptions(c)
+
+			require.Equal(t, http.StatusOK, rec.Code)
+			require.Equal(t, []int64{1}, upstream.accountIDs)
+			require.Len(t, upstream.bodies, 1)
+			require.Contains(t, string(upstream.bodies[0]), tt.model)
+			require.NotContains(t, string(upstream.bodies[0]), service.OpenAIAudioTranscriptionsDefaultModel)
+		})
+	}
 }
 
 func TestOpenAIGatewayHandlerAudioTranscriptions_SameAccountRetry(t *testing.T) {
@@ -253,8 +291,13 @@ func newAudioTranscriptionHandlerForTest(t *testing.T, upstream service.HTTPUpst
 
 func newAudioTranscriptionHandlerContext(t *testing.T, path string) (*gin.Context, *httptest.ResponseRecorder) {
 	t.Helper()
+	return newAudioTranscriptionHandlerContextWithModel(t, path, service.OpenAIAudioTranscriptionsDefaultModel)
+}
+
+func newAudioTranscriptionHandlerContextWithModel(t *testing.T, path string, model string) (*gin.Context, *httptest.ResponseRecorder) {
+	t.Helper()
 	gin.SetMode(gin.TestMode)
-	body, contentType := buildAudioTranscriptionHandlerMultipart(t)
+	body, contentType := buildAudioTranscriptionHandlerMultipartWithModel(t, model)
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = httptest.NewRequest(http.MethodPost, path, bytes.NewReader(body))
@@ -283,7 +326,7 @@ func newAudioTranscriptionHandlerContext(t *testing.T, path string) (*gin.Contex
 	return c, rec
 }
 
-func buildAudioTranscriptionHandlerMultipart(t *testing.T) ([]byte, string) {
+func buildAudioTranscriptionHandlerMultipartWithModel(t *testing.T, model string) ([]byte, string) {
 	t.Helper()
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
@@ -291,7 +334,7 @@ func buildAudioTranscriptionHandlerMultipart(t *testing.T) ([]byte, string) {
 	require.NoError(t, err)
 	_, err = part.Write([]byte("fake-audio"))
 	require.NoError(t, err)
-	require.NoError(t, writer.WriteField("model", service.OpenAIAudioTranscriptionsDefaultModel))
+	require.NoError(t, writer.WriteField("model", model))
 	require.NoError(t, writer.Close())
 	return body.Bytes(), writer.FormDataContentType()
 }
