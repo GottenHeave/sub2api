@@ -251,7 +251,7 @@ func newAudioTranscriptionHandlerForTest(t *testing.T, upstream service.HTTPUpst
 	accountRepo := &audioTranscriptionHandlerAccountRepo{accounts: accounts}
 	usageRepo := &audioTranscriptionHandlerUsageLogRepo{}
 	concurrencyService := service.NewConcurrencyService(nil)
-	billingCacheService := service.NewBillingCacheService(nil, nil, nil, nil, nil, nil, cfg)
+	billingCacheService := service.NewBillingCacheService(nil, nil, nil, nil, nil, nil, cfg, nil)
 	billingService := service.NewBillingService(cfg, nil)
 	deferredService := service.NewDeferredService(accountRepo, nil, time.Minute)
 	gatewayService := service.NewOpenAIGatewayService(
@@ -270,6 +270,7 @@ func newAudioTranscriptionHandlerForTest(t *testing.T, upstream service.HTTPUpst
 		billingCacheService,
 		upstream,
 		deferredService,
+		nil,
 		nil,
 		nil,
 		nil,

@@ -198,7 +198,7 @@ func newRealtimeCallsHandlerForTest(t *testing.T, upstream service.HTTPUpstream,
 
 	accountRepo := &realtimeCallsHandlerAccountRepo{accounts: accounts}
 	concurrencyService := service.NewConcurrencyService(nil)
-	billingCacheService := service.NewBillingCacheService(nil, nil, nil, nil, nil, nil, cfg)
+	billingCacheService := service.NewBillingCacheService(nil, nil, nil, nil, nil, nil, cfg, nil)
 	billingService := service.NewBillingService(cfg, nil)
 	deferredService := service.NewDeferredService(accountRepo, nil, time.Minute)
 	gatewayService := service.NewOpenAIGatewayService(
@@ -217,6 +217,7 @@ func newRealtimeCallsHandlerForTest(t *testing.T, upstream service.HTTPUpstream,
 		billingCacheService,
 		upstream,
 		deferredService,
+		nil,
 		nil,
 		nil,
 		nil,

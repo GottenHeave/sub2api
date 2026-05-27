@@ -64,7 +64,7 @@ func (r *audioTranscriptionRateLimitAccountRepoStub) SetRateLimited(_ context.Co
 	return nil
 }
 
-func (r *audioTranscriptionRateLimitAccountRepoStub) SetModelRateLimit(_ context.Context, id int64, scope string, resetAt time.Time) error {
+func (r *audioTranscriptionRateLimitAccountRepoStub) SetModelRateLimit(_ context.Context, id int64, scope string, resetAt time.Time, _ ...string) error {
 	r.modelRateLimitCalls++
 	r.lastModelRateLimitID = id
 	r.lastModelRateLimitKey = scope
