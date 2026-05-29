@@ -52,6 +52,8 @@ func TestParseOpenAIWSResponseUsageFromCompletedEvent(t *testing.T) {
 }
 
 func TestOpenAIWSEventShouldParseUsageTerminalEvents(t *testing.T) {
+	t.Parallel()
+
 	for _, eventType := range []string{
 		"response.completed",
 		"response.done",
@@ -61,8 +63,10 @@ func TestOpenAIWSEventShouldParseUsageTerminalEvents(t *testing.T) {
 		"response.canceled",
 	} {
 		require.True(t, openAIWSEventShouldParseUsage(eventType), eventType)
+		require.True(t, openAIWSEventShouldParseUsage("  "+eventType+"  "), eventType)
 	}
-	require.False(t, openAIWSEventShouldParseUsage("response.in_progress"))
+	require.False(t, openAIWSEventShouldParseUsage("response.output_text.delta"))
+	require.False(t, openAIWSEventShouldParseUsage(""))
 }
 
 func TestOpenAIWSErrorEventHelpers_ConsistentWithWrapper(t *testing.T) {

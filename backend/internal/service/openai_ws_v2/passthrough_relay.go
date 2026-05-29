@@ -29,6 +29,7 @@ type Usage struct {
 	OutputAudioTokens        int
 	CacheCreationAudioTokens int
 	CacheReadAudioTokens     int
+	ImageOutputTokens        int
 }
 
 type RelayResult struct {
@@ -771,6 +772,10 @@ func parseUsageAndAccumulate(
 		"input_token_details.cached_tokens",
 		"prompt_tokens_details.cached_tokens",
 	)
+	imageTokens := usageResult.Get("output_tokens_details.image_tokens").Int()
+	if imageTokens == 0 {
+		imageTokens = usageResult.Get("completion_tokens_details.image_tokens").Int()
+	}
 
 	inputTokens, inputOK := parseUsageIntField(inputResult, true)
 	outputTokens, outputOK := parseUsageIntField(outputResult, true)
@@ -815,6 +820,7 @@ func parseUsageAndAccumulate(
 			"input_tokens_details.cached_tokens_details.audio_tokens",
 			"prompt_tokens_details.cached_tokens_details.audio_tokens",
 		),
+		ImageOutputTokens: int(imageTokens),
 	}
 
 	state.usage.InputTokens += parsedUsage.InputTokens
@@ -825,6 +831,7 @@ func parseUsageAndAccumulate(
 	state.usage.OutputAudioTokens += parsedUsage.OutputAudioTokens
 	state.usage.CacheCreationAudioTokens += parsedUsage.CacheCreationAudioTokens
 	state.usage.CacheReadAudioTokens += parsedUsage.CacheReadAudioTokens
+	state.usage.ImageOutputTokens += parsedUsage.ImageOutputTokens
 	return parsedUsage
 }
 

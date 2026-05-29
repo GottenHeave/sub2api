@@ -24,6 +24,7 @@ func TestNormalizeInboundEndpoint(t *testing.T) {
 		// Direct canonical paths.
 		{"/v1/messages", EndpointMessages},
 		{"/v1/chat/completions", EndpointChatCompletions},
+		{"/v1/embeddings", EndpointEmbeddings},
 		{"/v1/responses", EndpointResponses},
 		{"/v1/realtime", EndpointRealtime},
 		{"/v1/realtime/calls/call_123/accept", EndpointRealtimeCallsAccept},
@@ -110,6 +111,7 @@ func TestDeriveUpstreamEndpoint(t *testing.T) {
 		{"openai prefixed realtime translation calls", EndpointRealtimeREST, "/openai/v1/realtime/translations/calls", service.PlatformOpenAI, "/v1/realtime/translations/calls"},
 		{"openai audio transcriptions", EndpointAudioTranscriptions, "/v1/audio/transcriptions", service.PlatformOpenAI, EndpointAudioTranscriptions},
 		{"openai transcribe alias", EndpointTranscribe, "/transcribe", service.PlatformOpenAI, EndpointAudioTranscriptions},
+		{"openai embeddings", EndpointEmbeddings, "/v1/embeddings", service.PlatformOpenAI, EndpointEmbeddings},
 		{"openai image generations", EndpointImagesGenerations, "/v1/images/generations", service.PlatformOpenAI, EndpointImagesGenerations},
 		{"openai image edits", EndpointImagesEdits, "/openai/v1/images/edits", service.PlatformOpenAI, EndpointImagesEdits},
 

@@ -31,7 +31,7 @@ func (r *rateLimit429AccountRepoStub) SetRateLimited(_ context.Context, id int64
 	return nil
 }
 
-func (r *rateLimit429AccountRepoStub) SetModelRateLimit(_ context.Context, id int64, scope string, resetAt time.Time) error {
+func (r *rateLimit429AccountRepoStub) SetModelRateLimit(_ context.Context, id int64, scope string, resetAt time.Time, _ ...string) error {
 	r.modelRateLimitCalls++
 	r.lastModelRateLimitID = id
 	r.lastModelRateLimitKey = scope

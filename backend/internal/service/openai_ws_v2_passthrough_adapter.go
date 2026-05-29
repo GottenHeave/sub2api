@@ -361,6 +361,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 	// goroutine）和 OnTurnComplete / final result（runUpstreamToClient
 	// goroutine）之间同步当前 turn 的 usage metadata。
 	usageMeta.initFromFirstFrame(firstClientMessage)
+	promptCacheKey := strings.TrimSpace(gjson.GetBytes(firstClientMessage, "prompt_cache_key").String())
 
 	wsURL, err := s.buildOpenAIWSURL(account, upstreamEndpoint, realtimeModel)
 	if err != nil {
@@ -387,7 +388,13 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 	if s.cfg != nil && s.cfg.Gateway.ForceCodexCLI {
 		isCodexCLI = true
 	}
-	headers, _ := s.buildOpenAIWSHeaders(c, account, token, wsDecision, isCodexCLI, "", "", "")
+	turnState := ""
+	turnMetadata := ""
+	if c != nil {
+		turnState = strings.TrimSpace(c.GetHeader(openAIWSTurnStateHeader))
+		turnMetadata = strings.TrimSpace(c.GetHeader(openAIWSTurnMetadataHeader))
+	}
+	headers, _ := s.buildOpenAIWSHeaders(c, account, token, wsDecision, isCodexCLI, turnState, turnMetadata, promptCacheKey)
 	proxyURL := ""
 	if account.ProxyID != nil && account.Proxy != nil {
 		proxyURL = account.Proxy.URL()
@@ -535,6 +542,10 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 		)
 	}
 	upstreamFirstMessageSent = true
+	startClientAfterFirstDownstream := !upstreamFirstMessageSent
+	if upstreamFirstMessageSent && strings.TrimSpace(upstreamEndpoint) != "/v1/realtime" {
+		startClientAfterFirstDownstream = true
+	}
 
 	readNextClientFrame := func(readCtx context.Context, conn openaiwsv2.FrameConn) (coderws.MessageType, []byte, error) {
 		for {
@@ -562,7 +573,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 			FirstMessageType:                coderws.MessageText,
 			InitialRequestModel:             strings.TrimSpace(realtimeModel),
 			FirstMessageSent:                upstreamFirstMessageSent,
-			StartClientAfterFirstDownstream: !upstreamFirstMessageSent,
+			StartClientAfterFirstDownstream: startClientAfterFirstDownstream,
 			ReadClientFrame:                 readNextClientFrame,
 			OnUsageParseFailure: func(eventType string, usageRaw string) {
 				logOpenAIWSV2Passthrough(
@@ -584,6 +595,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 						OutputAudioTokens:        turn.Usage.OutputAudioTokens,
 						CacheCreationAudioTokens: turn.Usage.CacheCreationAudioTokens,
 						CacheReadAudioTokens:     turn.Usage.CacheReadAudioTokens,
+						ImageOutputTokens:        turn.Usage.ImageOutputTokens,
 					},
 					Model:           turn.RequestModel,
 					ServiceTier:     usageMeta.serviceTier.Load(),
@@ -662,6 +674,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 			OutputAudioTokens:        relayResult.Usage.OutputAudioTokens,
 			CacheCreationAudioTokens: relayResult.Usage.CacheCreationAudioTokens,
 			CacheReadAudioTokens:     relayResult.Usage.CacheReadAudioTokens,
+			ImageOutputTokens:        relayResult.Usage.ImageOutputTokens,
 		},
 		Model:           relayResult.RequestModel,
 		ServiceTier:     usageMeta.serviceTier.Load(),

@@ -17,6 +17,7 @@ import (
 const (
 	EndpointMessages            = "/v1/messages"
 	EndpointChatCompletions     = "/v1/chat/completions"
+	EndpointEmbeddings          = "/v1/embeddings"
 	EndpointResponses           = "/v1/responses"
 	EndpointRealtime            = "/v1/realtime"
 	EndpointRealtimeREST        = "/v1/realtime/rest"
@@ -47,6 +48,8 @@ const (
 func NormalizeInboundEndpoint(path string) string {
 	path = strings.TrimSpace(path)
 	switch {
+	case strings.Contains(path, EndpointEmbeddings):
+		return EndpointEmbeddings
 	case strings.Contains(path, EndpointChatCompletions):
 		return EndpointChatCompletions
 	case strings.Contains(path, EndpointMessages):
@@ -88,7 +91,7 @@ func DeriveUpstreamEndpoint(inbound, rawRequestPath, platform string) string {
 
 	switch platform {
 	case service.PlatformOpenAI:
-		if inbound == EndpointImagesGenerations || inbound == EndpointImagesEdits {
+		if inbound == EndpointEmbeddings || inbound == EndpointImagesGenerations || inbound == EndpointImagesEdits {
 			return inbound
 		}
 		if inbound == EndpointAudioTranscriptions || inbound == EndpointTranscribe {
