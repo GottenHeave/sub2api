@@ -6,7 +6,10 @@ import (
 	"time"
 )
 
-const modelRateLimitsKey = "model_rate_limits"
+const (
+	modelRateLimitsKey                 = "model_rate_limits"
+	antigravityGeminiModelRateLimitKey = "antigravity:gemini"
+)
 
 type modelRateLimitExtraScopesContextKey struct{}
 
@@ -62,6 +65,9 @@ func (a *Account) isModelRateLimitedWithContext(ctx context.Context, requestedMo
 	modelKey := a.GetMappedModel(requestedModel)
 	if a.Platform == PlatformAntigravity {
 		modelKey = resolveFinalAntigravityModelKey(ctx, a, requestedModel)
+		if isAntigravityGeminiModel(modelKey) && a.isRateLimitActiveForKey(antigravityGeminiModelRateLimitKey) {
+			return true
+		}
 	}
 	modelKey = strings.TrimSpace(modelKey)
 	if modelKey == "" {
@@ -103,6 +109,11 @@ func (a *Account) GetModelRateLimitRemainingTimeWithContext(ctx context.Context,
 			remaining = scopeRemaining
 		}
 	}
+	if a.Platform == PlatformAntigravity && isAntigravityGeminiModel(modelKey) {
+		if familyRemaining := a.getRateLimitRemainingForKey(antigravityGeminiModelRateLimitKey); familyRemaining > remaining {
+			remaining = familyRemaining
+		}
+	}
 	return remaining
 }
 
@@ -116,6 +127,22 @@ func resolveFinalAntigravityModelKey(ctx context.Context, account *Account, requ
 		modelKey = applyThinkingModelSuffix(modelKey, enabled)
 	}
 	return modelKey
+}
+
+func isAntigravityGeminiModel(model string) bool {
+	return strings.HasPrefix(normalizeAntigravityModelName(model), "gemini-")
+}
+
+func antigravityModelRateLimitKeys(model string) []string {
+	model = strings.TrimSpace(model)
+	if model == "" {
+		return nil
+	}
+	keys := []string{model}
+	if isAntigravityGeminiModel(model) && model != antigravityGeminiModelRateLimitKey {
+		keys = append(keys, antigravityGeminiModelRateLimitKey)
+	}
+	return keys
 }
 
 func (a *Account) modelRateLimitResetAt(scope string) *time.Time {
