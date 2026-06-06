@@ -4,11 +4,14 @@ import (
 	"context"
 	"strings"
 	"time"
+
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 )
 
 const (
 	modelRateLimitsKey                 = "model_rate_limits"
 	antigravityGeminiModelRateLimitKey = "antigravity:gemini"
+	openAIImageGenerationRateLimitKey  = "openai:image_generation"
 )
 
 type modelRateLimitExtraScopesContextKey struct{}
@@ -58,26 +61,8 @@ func (a *Account) getRateLimitRemainingForKey(key string) time.Duration {
 }
 
 func (a *Account) isModelRateLimitedWithContext(ctx context.Context, requestedModel string) bool {
-	if a == nil {
-		return false
-	}
-
-	modelKey := a.GetMappedModel(requestedModel)
-	if a.Platform == PlatformAntigravity {
-		modelKey = resolveFinalAntigravityModelKey(ctx, a, requestedModel)
-		if isAntigravityGeminiModel(modelKey) && a.isRateLimitActiveForKey(antigravityGeminiModelRateLimitKey) {
-			return true
-		}
-	}
-	modelKey = strings.TrimSpace(modelKey)
-	if modelKey == "" {
-		return false
-	}
-	if a.isRateLimitActiveForKey(modelKey) {
-		return true
-	}
-	for _, scope := range modelRateLimitExtraScopesFromContext(ctx) {
-		if a.isRateLimitActiveForKey(scope) {
+	for _, key := range a.modelRateLimitKeysForRequest(ctx, requestedModel) {
+		if a.isRateLimitActiveForKey(key) {
 			return true
 		}
 	}
@@ -91,8 +76,18 @@ func (a *Account) GetModelRateLimitRemainingTime(requestedModel string) time.Dur
 }
 
 func (a *Account) GetModelRateLimitRemainingTimeWithContext(ctx context.Context, requestedModel string) time.Duration {
+	remaining := time.Duration(0)
+	for _, key := range a.modelRateLimitKeysForRequest(ctx, requestedModel) {
+		if keyRemaining := a.getRateLimitRemainingForKey(key); keyRemaining > remaining {
+			remaining = keyRemaining
+		}
+	}
+	return remaining
+}
+
+func (a *Account) modelRateLimitKeysForRequest(ctx context.Context, requestedModel string) []string {
 	if a == nil {
-		return 0
+		return nil
 	}
 
 	modelKey := a.GetMappedModel(requestedModel)
@@ -101,20 +96,59 @@ func (a *Account) GetModelRateLimitRemainingTimeWithContext(ctx context.Context,
 	}
 	modelKey = strings.TrimSpace(modelKey)
 	if modelKey == "" {
-		return 0
+		return nil
 	}
-	remaining := a.getRateLimitRemainingForKey(modelKey)
+
+	keys := []string{modelKey}
 	for _, scope := range modelRateLimitExtraScopesFromContext(ctx) {
-		if scopeRemaining := a.getRateLimitRemainingForKey(scope); scopeRemaining > remaining {
-			remaining = scopeRemaining
+		keys = appendModelRateLimitKey(keys, scope)
+	}
+	switch a.Platform {
+	case PlatformAntigravity:
+		if isAntigravityGeminiModel(modelKey) {
+			keys = appendModelRateLimitKey(keys, antigravityGeminiModelRateLimitKey)
+		}
+	case PlatformOpenAI:
+		if openAIImageGenerationRateLimitApplies(ctx, requestedModel, modelKey) {
+			keys = appendModelRateLimitKey(keys, openAIImageGenerationRateLimitKey)
 		}
 	}
-	if a.Platform == PlatformAntigravity && isAntigravityGeminiModel(modelKey) {
-		if familyRemaining := a.getRateLimitRemainingForKey(antigravityGeminiModelRateLimitKey); familyRemaining > remaining {
-			remaining = familyRemaining
+	return keys
+}
+
+func appendModelRateLimitKey(keys []string, key string) []string {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return keys
+	}
+	for _, existing := range keys {
+		if existing == key {
+			return keys
 		}
 	}
-	return remaining
+	return append(keys, key)
+}
+
+func openAIImageGenerationRateLimitApplies(ctx context.Context, requestedModel, modelKey string) bool {
+	if isOpenAIImageGenerationModel(requestedModel) || isOpenAIImageGenerationModel(modelKey) {
+		return true
+	}
+	return OpenAIImageGenerationIntentFromContext(ctx)
+}
+
+func WithOpenAIImageGenerationIntent(ctx context.Context) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, ctxkey.OpenAIImageGenerationIntent, true)
+}
+
+func OpenAIImageGenerationIntentFromContext(ctx context.Context) bool {
+	if ctx == nil {
+		return false
+	}
+	enabled, ok := ctx.Value(ctxkey.OpenAIImageGenerationIntent).(bool)
+	return ok && enabled
 }
 
 func resolveFinalAntigravityModelKey(ctx context.Context, account *Account, requestedModel string) string {
