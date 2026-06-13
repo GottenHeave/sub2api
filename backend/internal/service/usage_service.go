@@ -50,6 +50,8 @@ type UsageStats struct {
 	TotalInputTokens              int64   `json:"total_input_tokens"`
 	TotalOutputTokens             int64   `json:"total_output_tokens"`
 	TotalCacheTokens              int64   `json:"total_cache_tokens"`
+	TotalCacheCreationTokens      int64   `json:"total_cache_creation_tokens"`
+	TotalCacheReadTokens          int64   `json:"total_cache_read_tokens"`
 	TotalAudioInputTokens         int64   `json:"total_audio_input_tokens"`
 	TotalAudioOutputTokens        int64   `json:"total_audio_output_tokens"`
 	TotalAudioCacheCreationTokens int64   `json:"total_audio_cache_creation_tokens"`
@@ -206,6 +208,8 @@ func (s *UsageService) GetStatsByUser(ctx context.Context, userID int64, startTi
 		TotalInputTokens:              stats.TotalInputTokens,
 		TotalOutputTokens:             stats.TotalOutputTokens,
 		TotalCacheTokens:              stats.TotalCacheTokens,
+		TotalCacheCreationTokens:      stats.TotalCacheCreationTokens,
+		TotalCacheReadTokens:          stats.TotalCacheReadTokens,
 		TotalAudioInputTokens:         stats.TotalAudioInputTokens,
 		TotalAudioOutputTokens:        stats.TotalAudioOutputTokens,
 		TotalAudioCacheCreationTokens: stats.TotalAudioCacheCreationTokens,
@@ -229,6 +233,8 @@ func (s *UsageService) GetStatsByAPIKey(ctx context.Context, apiKeyID int64, sta
 		TotalInputTokens:              stats.TotalInputTokens,
 		TotalOutputTokens:             stats.TotalOutputTokens,
 		TotalCacheTokens:              stats.TotalCacheTokens,
+		TotalCacheCreationTokens:      stats.TotalCacheCreationTokens,
+		TotalCacheReadTokens:          stats.TotalCacheReadTokens,
 		TotalAudioInputTokens:         stats.TotalAudioInputTokens,
 		TotalAudioOutputTokens:        stats.TotalAudioOutputTokens,
 		TotalAudioCacheCreationTokens: stats.TotalAudioCacheCreationTokens,
@@ -252,6 +258,8 @@ func (s *UsageService) GetStatsByAccount(ctx context.Context, accountID int64, s
 		TotalInputTokens:              stats.TotalInputTokens,
 		TotalOutputTokens:             stats.TotalOutputTokens,
 		TotalCacheTokens:              stats.TotalCacheTokens,
+		TotalCacheCreationTokens:      stats.TotalCacheCreationTokens,
+		TotalCacheReadTokens:          stats.TotalCacheReadTokens,
 		TotalAudioInputTokens:         stats.TotalAudioInputTokens,
 		TotalAudioOutputTokens:        stats.TotalAudioOutputTokens,
 		TotalAudioCacheCreationTokens: stats.TotalAudioCacheCreationTokens,
@@ -275,6 +283,8 @@ func (s *UsageService) GetStatsByModel(ctx context.Context, modelName string, st
 		TotalInputTokens:              stats.TotalInputTokens,
 		TotalOutputTokens:             stats.TotalOutputTokens,
 		TotalCacheTokens:              stats.TotalCacheTokens,
+		TotalCacheCreationTokens:      stats.TotalCacheCreationTokens,
+		TotalCacheReadTokens:          stats.TotalCacheReadTokens,
 		TotalAudioInputTokens:         stats.TotalAudioInputTokens,
 		TotalAudioOutputTokens:        stats.TotalAudioOutputTokens,
 		TotalAudioCacheCreationTokens: stats.TotalAudioCacheCreationTokens,

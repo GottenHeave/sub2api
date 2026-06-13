@@ -306,6 +306,8 @@ type UsageStats struct {
 	TotalInputTokens              int64          `json:"total_input_tokens"`
 	TotalOutputTokens             int64          `json:"total_output_tokens"`
 	TotalCacheTokens              int64          `json:"total_cache_tokens"`
+	TotalCacheCreationTokens      int64          `json:"total_cache_creation_tokens"`
+	TotalCacheReadTokens          int64          `json:"total_cache_read_tokens"`
 	TotalAudioInputTokens         int64          `json:"total_audio_input_tokens"`
 	TotalAudioOutputTokens        int64          `json:"total_audio_output_tokens"`
 	TotalAudioCacheCreationTokens int64          `json:"total_audio_cache_creation_tokens"`
