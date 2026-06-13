@@ -216,6 +216,10 @@ func (r *audioTranscriptionRateLimitAccountRepoStub) UpdateSessionWindow(context
 	return nil
 }
 
+func (r *audioTranscriptionRateLimitAccountRepoStub) UpdateSessionWindowEnd(context.Context, int64, time.Time) error {
+	return nil
+}
+
 func (r *audioTranscriptionRateLimitAccountRepoStub) UpdateExtra(context.Context, int64, map[string]any) error {
 	return nil
 }
@@ -229,6 +233,10 @@ func (r *audioTranscriptionRateLimitAccountRepoStub) IncrementQuotaUsed(context.
 }
 
 func (r *audioTranscriptionRateLimitAccountRepoStub) ResetQuotaUsed(context.Context, int64) error {
+	return nil
+}
+
+func (r *audioTranscriptionRateLimitAccountRepoStub) RevertProxyFallback(context.Context, int64) error {
 	return nil
 }
 
